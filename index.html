@@ -357,7 +357,7 @@ async function sbFetch(path, options={}) {
 // =====================================================
 // 카카오워크 알림 전송
 // =====================================================
-async function sendKakaoWorkNotice(order) {
+async function async function sendKakaoWorkNotice(order) {
   const itemList = order.items.map(i => `• ${i.name} × ${i.qty}개`).join('\n');
   const message = `🛒 새 발주 신청\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
   try {
