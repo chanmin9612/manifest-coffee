@@ -359,15 +359,15 @@ async function sbFetch(path, options={}) {
 // =====================================================
 async function sendKakaoWorkNotice(order) {
   const itemList = order.items.map(i => `• ${i.name} × ${i.qty}개`).join('\n');
-  const message = {
-    text: `🛒 새 발주 신청\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목`
-  };
+  const message = `🛒 새 발주 신청\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
   try {
-    await fetch(KAKAOWORK_WEBHOOK, {
+    await fetch(SUPABASE_URL + '/functions/v1/notify-kakaowork', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-      mode: 'no-cors'
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_KEY
+      },
+      body: JSON.stringify({ message })
     });
   } catch(e) {
     console.warn('카카오워크 알림 전송 실패:', e);
