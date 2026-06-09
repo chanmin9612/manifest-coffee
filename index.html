@@ -858,20 +858,23 @@ async function loadData() {
     const rows = await sbFetch('app_state?select=key,value');
     if (rows && rows.length > 0) {
       rows.forEach(row => {
-        if (row.key === 'items') items = JSON.parse(row.value);
-        if (row.key === 'orders') orders = JSON.parse(row.value);
-        if (row.key === 'history') history = JSON.parse(row.value);
+        try {
+          if (row.key === 'items') items = JSON.parse(row.value);
+          if (row.key === 'orders') orders = JSON.parse(row.value);
+          if (row.key === 'history') history = JSON.parse(row.value);
+        } catch(pe) { console.warn('파싱 오류:', row.key, pe); }
       });
     } else {
-      // 최초 실행: 기본 데이터 저장
       await initDB();
     }
   } catch(e) {
     console.error('데이터 로드 실패:', e);
-    toast('데이터 로드 실패 — 오프라인 모드로 실행됩니다');
+    toast('오프라인 모드로 실행됩니다');
+  } finally {
+    showLoading(false);
+    renderList();
+    updateBadge();
   }
-  showLoading(false);
-  renderList();updateBadge();
 }
 
 async function initDB() {
