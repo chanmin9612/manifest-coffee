@@ -469,13 +469,13 @@ function openOrderModal(){
     <div style="font-size:12px;color:#888;margin-top:8px">총 <strong style="color:#2796CC">${keys.length}</strong>개 품목</div>`;
   document.getElementById('order-modal').classList.add('on');
 }
-function submitOrder(){
+async function submitOrder(){
   const keys=Object.keys(cart);
   const oi=keys.map(id=>{const it=items.find(x=>x.id==id);return{...it,qty:cart[id],received:false,cancelled:false,receiveDate:null,unitPrice:it.unitPrice||0}});
   const newOrder={id:Date.now(),date:td(),items:oi,status:'발주중'};
   orders.push(newOrder);cart={};save();closeM('order-modal');renderList();renderCart();updateBadge();
   toast('발주가 신청되었습니다 📦');go('pending');
-  sendSlackNotice(newOrder);
+  await sendSlackNotice(newOrder);
 }
 function updateBadge(){const n=orders.filter(o=>o.status==='발주중').length;const b=document.getElementById('pbadge');b.textContent=n+'건 대기';b.style.display=n?'block':'none'}
 
