@@ -419,24 +419,10 @@ let cart={};
 let activeCat='all';
 let cancelTarget={oid:null,idx:null};
 
-async function save() {
-  try {
-    await sbFetch('app_state?key=eq.items', {
-      method: 'PATCH', prefer: 'return=minimal',
-      body: JSON.stringify({ value: JSON.stringify(items) })
-    });
-    await sbFetch('app_state?key=eq.orders', {
-      method: 'PATCH', prefer: 'return=minimal',
-      body: JSON.stringify({ value: JSON.stringify(orders) })
-    });
-    await sbFetch('app_state?key=eq.history', {
-      method: 'PATCH', prefer: 'return=minimal',
-      body: JSON.stringify({ value: JSON.stringify(history) })
-    });
-  } catch(e) {
-    console.error('저장 오류:', e);
-    toast('저장 중 오류가 발생했습니다');
-  }
+function save() {
+  localStorage.setItem('mf2_items', JSON.stringify(items));
+  localStorage.setItem('mf2_orders', JSON.stringify(orders));
+  localStorage.setItem('mf2_hist', JSON.stringify(history));
 }
 function td(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function fd(s){if(!s)return'';const[y,m,d]=s.split('-');return`${y}년 ${+m}월 ${+d}일`}
@@ -853,28 +839,15 @@ const now=new Date();
 document.getElementById('hdr-date').textContent=`${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${days[now.getDay()]})`;
 
 async function loadData() {
-  showLoading(true);
-  try {
-    const rows = await sbFetch('app_state?select=key,value');
-    if (rows && rows.length > 0) {
-      rows.forEach(row => {
-        try {
-          if (row.key === 'items') items = JSON.parse(row.value);
-          if (row.key === 'orders') orders = JSON.parse(row.value);
-          if (row.key === 'history') history = JSON.parse(row.value);
-        } catch(pe) { console.warn('파싱 오류:', row.key, pe); }
-      });
-    } else {
-      await initDB();
-    }
-  } catch(e) {
-    console.error('데이터 로드 실패:', e);
-    toast('오프라인 모드로 실행됩니다');
-  } finally {
-    showLoading(false);
-    renderList();
-    updateBadge();
-  }
+  const localItems = localStorage.getItem('mf2_items');
+  const localOrders = localStorage.getItem('mf2_orders');
+  const localHistory = localStorage.getItem('mf2_hist');
+  if (localItems) items = JSON.parse(localItems);
+  if (localOrders) orders = JSON.parse(localOrders);
+  if (localHistory) history = JSON.parse(localHistory);
+  showLoading(false);
+  renderList();
+  updateBadge();
 }
 
 async function initDB() {
