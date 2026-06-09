@@ -374,6 +374,12 @@ const DEF=[
 ];
 
 let items=JSON.parse(localStorage.getItem('mf2_items')||'null')||DEF;
+// 최초 배포 시 테스트 데이터 초기화 (한 번만 실행)
+if(!localStorage.getItem('mf2_cleaned_v1')){
+  localStorage.removeItem('mf2_orders');
+  localStorage.removeItem('mf2_hist');
+  localStorage.setItem('mf2_cleaned_v1','true');
+}
 let orders=JSON.parse(localStorage.getItem('mf2_orders')||'[]');
 let history=JSON.parse(localStorage.getItem('mf2_hist')||'[]');
 let cart={};
@@ -487,12 +493,15 @@ function openCancelItemModal(oid,idx){
 }
 function confirmCancelItem(){
   const{oid,idx}=cancelTarget;const o=orders.find(x=>x.id===oid);if(!o)return;
+  const itemName=o.items[idx].name;
   o.items[idx].cancelled=true;o.items[idx].received=false;
   const allDone=o.items.every(i=>i.received||i.cancelled);
-  if(allDone){o.status=o.items.every(i=>i.cancelled)?'전체취소':'입고완료';o.receiveDate=td();
+  if(allDone){
+    o.status=o.items.every(i=>i.cancelled)?'전체취소':'입고완료';o.receiveDate=td();
     if(o.status!=='전체취소'){const m=mk(),md=history.find(h=>h.month===m)||(history.push({month:m,orders:[]}),history[history.length-1]);md.orders.push(JSON.parse(JSON.stringify(o)));}
+    orders=orders.filter(x=>x.id!==oid);
   }
-  save();closeM('cancel-item-modal');updateBadge();renderPending();toast(`${o.items[idx].name} 품목이 취소되었습니다`);cancelTarget={oid:null,idx:null};
+  save();closeM('cancel-item-modal');updateBadge();renderPending();toast(`${itemName} 품목이 취소되었습니다`);cancelTarget={oid:null,idx:null};
 }
 
 function renderPending(){
@@ -580,6 +589,32 @@ function buildData(){
   const names=Object.keys(qtyMap).sort((a,b)=>(qtyMap[b].lastDate||'').localeCompare(qtyMap[a].lastDate||''));
   return{months,qtyMap,costMap,names};
 }
+function deleteReceivedItem(monthIdx, orderIdx, itemIdx) {
+  if (!confirm('이 입고 기록을 삭제하시겠습니까?')) return;
+  const mdata = history[monthIdx];
+  if (!mdata) return;
+  const order = mdata.orders[orderIdx];
+  if (!order) return;
+  // received된 항목만 필터링해서 해당 인덱스 찾기
+  const receivedItems = order.items.filter(i => i.received);
+  const targetItem = receivedItems[itemIdx];
+  if (!targetItem) return;
+  // 해당 아이템을 history에서 완전 제거
+  const origIdx = order.items.indexOf(targetItem);
+  order.items.splice(origIdx, 1);
+  // 발주의 모든 품목이 없어지면 해당 발주 자체 제거
+  if (order.items.length === 0) {
+    mdata.orders.splice(orderIdx, 1);
+  }
+  // 해당 월의 발주가 없어지면 월 자체 제거
+  if (mdata.orders.length === 0) {
+    history.splice(monthIdx, 1);
+  }
+  save();
+  renderHistory();
+  toast('입고 기록이 삭제되었습니다');
+}
+
 function renderHistory(){
   const totalOrders=history.reduce((s,m)=>s+m.orders.length,0);
   const thisM=history.find(h=>h.month===mk());
@@ -618,8 +653,8 @@ function renderDetailTable(){
       <div class="inline-edit-box" id="${eid}">
         <div style="font-size:11px;color:#0C447C;font-weight:500;margin-bottom:8px"><i class="ti ti-info-circle"></i> 수량·단가 수정 후 저장하세요</div>
         ${sortedOrders.map(o=>{const ri=mdata.orders.indexOf(o);return`<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--color-text-secondary);font-weight:500;margin-bottom:5px">${fdS(o.receiveDate||o.date)} 입고</div>
-          <table class="ie-tbl"><thead><tr><th>품목명</th><th style="width:65px">수량</th><th style="width:85px">단가(원)</th></tr></thead><tbody>
-            ${o.items.filter(i=>i.received).map((item,iidx)=>`<tr><td style="font-weight:500">${item.name}</td><td style="text-align:center"><input class="ie-input" id="ieq-${monthIdx}-${ri}-${iidx}" value="${item.qty}" type="number" min="1"></td><td style="text-align:center"><input class="ie-input" id="iep-${monthIdx}-${ri}-${iidx}" value="${item.unitPrice||''}" placeholder="미정"></td></tr>`).join('')}
+          <table class="ie-tbl"><thead><tr><th>품목명</th><th style="width:65px">수량</th><th style="width:85px">단가(원)</th><th style="width:36px"></th></tr></thead><tbody>
+            ${o.items.filter(i=>i.received).map((item,iidx)=>`<tr><td style="font-weight:500">${item.name}</td><td style="text-align:center"><input class="ie-input" id="ieq-${monthIdx}-${ri}-${iidx}" value="${item.qty}" type="number" min="1"></td><td style="text-align:center"><input class="ie-input" id="iep-${monthIdx}-${ri}-${iidx}" value="${item.unitPrice||''}" placeholder="미정"></td><td style="text-align:center"><button onclick="deleteReceivedItem(${monthIdx},${ri},${iidx})" style="background:none;border:none;cursor:pointer;color:var(--rd);font-size:14px;" title="삭제"><i class="ti ti-trash"></i></button></td></tr>`).join('')}
           </tbody></table>
           <button class="btn bp" style="font-size:11px;padding:5px 12px;margin-top:6px" onclick="saveEdit(${monthIdx},${ri})"><i class="ti ti-check"></i> 이 발주 저장</button>
         </div>`;}).join('')}
