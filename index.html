@@ -321,16 +321,16 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 const SUPABASE_URL = 'https://gcyhfbihrjqqcyjlkhfs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ';
 
-async function sendKakaoWorkNotice(order) {
+async function sendSlackNotice(order) {
   const itemList = order.items.map(i => `• ${i.name} × ${i.qty}개`).join('\n');
-  const message = `🛒 새 발주 신청\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
+  const text = `🛒 *새 발주 신청*\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
   try {
-    await fetch(SUPABASE_URL + '/functions/v1/notify-kakaowork', {
+    await fetch('https://hooks.slack.com/services/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', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
-      body: JSON.stringify({ message })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
     });
-  } catch(e) { console.warn('카카오워크 알림 실패:', e); }
+  } catch(e) { console.warn('슬랙 알림 실패:', e); }
 }
 
 const DEF=[
@@ -472,7 +472,7 @@ function submitOrder(){
   const newOrder={id:Date.now(),date:td(),items:oi,status:'발주중'};
   orders.push(newOrder);cart={};save();closeM('order-modal');renderList();renderCart();updateBadge();
   toast('발주가 신청되었습니다 📦');go('pending');
-  sendKakaoWorkNotice(newOrder);
+  sendSlackNotice(newOrder);
 }
 function updateBadge(){const n=orders.filter(o=>o.status==='발주중').length;const b=document.getElementById('pbadge');b.textContent=n+'건 대기';b.style.display=n?'block':'none'}
 
