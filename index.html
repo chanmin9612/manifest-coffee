@@ -323,12 +323,15 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 async function sendSlackNotice(order) {
   const itemList = order.items.map(i => `• ${i.name} × ${i.qty}개`).join('\n');
-  const text = `🛒 *새 발주 신청*\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
+  const message = `🛒 *새 발주 신청*\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
   try {
-    await fetch('https://hooks.slack.com/services/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', {
+    await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/functions/v1/notify-kakaowork', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ'
+      },
+      body: JSON.stringify({ message })
     });
   } catch(e) { console.warn('슬랙 알림 실패:', e); }
 }
