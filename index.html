@@ -9,7 +9,9 @@
 <meta name="apple-mobile-web-app-title" content="매니페스트커피">
 <meta name="theme-color" content="#3AAEE0">
 <title>매니페스트커피 발주 관리</title>
-<link rel="manifest" href="manifest.json">
+</head>
+<body>
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -150,15 +152,6 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 .toast-el.on{opacity:1}
 #app-root{position:relative}
 </style>
-</head>
-<body>
-
-<div id="loading-overlay" style="position:fixed;inset:0;background:rgba(255,255,255,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px">
-  <div style="width:44px;height:44px;border:4px solid #E8ECF0;border-top-color:#3AAEE0;border-radius:50%;animation:spin 0.8s linear infinite"></div>
-  <div style="font-size:13px;color:#3AAEE0;font-weight:500">데이터 불러오는 중...</div>
-</div>
-<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
-
 
 <h2 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">매니페스트커피 발주 관리 시스템</h2>
 <div id="app-root">
@@ -323,57 +316,22 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 </div>
 <div class="toast-el" id="toast"></div>
 
-
 <script>
-
-// =====================================================
-// Supabase 설정
-// =====================================================
+// 카카오워크 알림
 const SUPABASE_URL = 'https://gcyhfbihrjqqcyjlkhfs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ';
 
-// 카카오워크 웹훅
-const KAKAOWORK_WEBHOOK = 'https://kakaowork.com/bots/hook/69dac5d6a09b4376bde0177f2931f2a1';
-
-async function sbFetch(path, options={}) {
-  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
-    ...options,
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_KEY,
-      'Content-Type': 'application/json',
-      'Prefer': options.prefer || 'return=representation',
-      ...(options.headers||{})
-    }
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err);
-  }
-  const text = await res.text();
-  return text ? JSON.parse(text) : [];
-}
-
-// =====================================================
-// 카카오워크 알림 전송
-// =====================================================
-async function async function sendKakaoWorkNotice(order) {
+async function sendKakaoWorkNotice(order) {
   const itemList = order.items.map(i => `• ${i.name} × ${i.qty}개`).join('\n');
   const message = `🛒 새 발주 신청\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
   try {
     await fetch(SUPABASE_URL + '/functions/v1/notify-kakaowork', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SUPABASE_KEY
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
       body: JSON.stringify({ message })
     });
-  } catch(e) {
-    console.warn('카카오워크 알림 전송 실패:', e);
-  }
+  } catch(e) { console.warn('카카오워크 알림 실패:', e); }
 }
-
 
 const DEF=[
   {id:1,name:'우유',price:'2,200원/1L',unitPrice:2200,unit:'1L',cat:'식음료'},
@@ -412,18 +370,14 @@ const DEF=[
   {id:34,name:'캐리어',price:'17,500원/200개',unitPrice:17500,unit:'200개',cat:'소모품'},
 ];
 
-let items=DEF;
-let orders=[];
-let history=[];
+let items=JSON.parse(localStorage.getItem('mf2_items')||'null')||DEF;
+let orders=JSON.parse(localStorage.getItem('mf2_orders')||'[]');
+let history=JSON.parse(localStorage.getItem('mf2_hist')||'[]');
 let cart={};
 let activeCat='all';
 let cancelTarget={oid:null,idx:null};
 
-function save() {
-  localStorage.setItem('mf2_items', JSON.stringify(items));
-  localStorage.setItem('mf2_orders', JSON.stringify(orders));
-  localStorage.setItem('mf2_hist', JSON.stringify(history));
-}
+function save(){localStorage.setItem('mf2_items',JSON.stringify(items));localStorage.setItem('mf2_orders',JSON.stringify(orders));localStorage.setItem('mf2_hist',JSON.stringify(history))}
 function td(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function fd(s){if(!s)return'';const[y,m,d]=s.split('-');return`${y}년 ${+m}월 ${+d}일`}
 function fdS(s){if(!s)return'';const p=s.split('-');return`${+p[1]}월 ${+p[2]}일`}
@@ -512,16 +466,12 @@ function openOrderModal(){
     <div style="font-size:12px;color:#888;margin-top:8px">총 <strong style="color:#2796CC">${keys.length}</strong>개 품목</div>`;
   document.getElementById('order-modal').classList.add('on');
 }
-async function submitOrder(){
+function submitOrder(){
   const keys=Object.keys(cart);
   const oi=keys.map(id=>{const it=items.find(x=>x.id==id);return{...it,qty:cart[id],received:false,cancelled:false,receiveDate:null,unitPrice:it.unitPrice||0}});
-  const newOrder = {id:Date.now(),date:td(),items:oi,status:'발주중'};
-  orders.push(newOrder);
-  cart={};
-  await save();
-  closeM('order-modal');renderList();renderCart();updateBadge();
-  toast('발주가 신청되었습니다 📦');
-  go('pending');
+  const newOrder={id:Date.now(),date:td(),items:oi,status:'발주중'};
+  orders.push(newOrder);cart={};save();closeM('order-modal');renderList();renderCart();updateBadge();
+  toast('발주가 신청되었습니다 📦');go('pending');
   sendKakaoWorkNotice(newOrder);
 }
 function updateBadge(){const n=orders.filter(o=>o.status==='발주중').length;const b=document.getElementById('pbadge');b.textContent=n+'건 대기';b.style.display=n?'block':'none'}
@@ -837,42 +787,8 @@ function closeM(id){document.getElementById(id).classList.remove('on')}
 const days=['일','월','화','수','목','금','토'];
 const now=new Date();
 document.getElementById('hdr-date').textContent=`${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${days[now.getDay()]})`;
-
-async function loadData() {
-  const localItems = localStorage.getItem('mf2_items');
-  const localOrders = localStorage.getItem('mf2_orders');
-  const localHistory = localStorage.getItem('mf2_hist');
-  if (localItems) items = JSON.parse(localItems);
-  if (localOrders) orders = JSON.parse(localOrders);
-  if (localHistory) history = JSON.parse(localHistory);
-  showLoading(false);
-  renderList();
-  updateBadge();
-}
-
-async function initDB() {
-  const defaults = [
-    { key: 'items', value: JSON.stringify(items) },
-    { key: 'orders', value: JSON.stringify(orders) },
-    { key: 'history', value: JSON.stringify(history) }
-  ];
-  for (const d of defaults) {
-    await sbFetch('app_state', {
-      method: 'POST', prefer: 'return=minimal',
-      body: JSON.stringify(d)
-    });
-  }
-}
-
-function showLoading(show) {
-  document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
-}
-
-loadData();
-
-
-// PWA Service Worker
-if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+renderList();updateBadge();
 </script>
+
 </body>
 </html>
