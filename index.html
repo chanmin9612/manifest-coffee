@@ -266,7 +266,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
         <div><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">단위</label><input class="sinput" id="new-unit" placeholder="예: 1L, 1kg, 1000개" style="margin:0"></div>
       </div>
       <div><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">카테고리</label>
-        <select class="mo-sel" id="new-cat" style="width:100%"><option value="식음료">식음료</option><option value="소모품">소모품</option></select>
+        <select class="mo-sel" id="new-cat" style="width:100%"><option value="식음료">식음료</option><option value="소모품">소모품</option><option value="기타">기타</option></select>
       </div>
       <button class="btn bp" onclick="addItem()"><i class="ti ti-plus" aria-hidden="true"></i>추가하기</button>
     </div>
@@ -288,7 +288,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
         <div><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">단위</label><input class="sinput" id="edit-unit" style="margin:0"></div>
       </div>
       <div><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">카테고리</label>
-        <select class="mo-sel" id="edit-cat" style="width:100%"><option value="식음료">식음료</option><option value="소모품">소모품</option></select>
+        <select class="mo-sel" id="edit-cat" style="width:100%"><option value="식음료">식음료</option><option value="소모품">소모품</option><option value="기타">기타</option></select>
       </div>
     </div>
     <div class="brow" style="margin-top:16px">
@@ -544,7 +544,7 @@ function renderPending(){
         </tr></thead><tbody id="itbl-${o.id}">
           ${o.items.map((item,iidx)=>`<tr class="${item.received?'done-row':item.cancelled?'cancelled-row':''}" id="itr-${o.id}-${iidx}">
             <td style="font-weight:500">${item.name}</td>
-            <td style="text-align:center"><span class="tag ${item.cat==='식음료'?'tg':'tb'}">${item.cat}</span></td>
+            <td style="text-align:center"><span class="tag ${item.cat==='식음료'?'tg':item.cat==='소모품'?'tb':'tother'}">${item.cat}</span></td>
             <td style="text-align:center">${item.qty}</td>
             <td style="text-align:center">${(item.received||item.cancelled)?`<span style="font-size:11px;color:var(--color-text-secondary)">${item.unitPrice>0?won(item.unitPrice):'미정'}</span>`:`<input class="price-input" id="pr-${o.id}-${iidx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액" onchange="updPrice(${o.id},${iidx},this.value)">`}</td>
             <td style="text-align:center;font-weight:500;color:${item.cancelled?'var(--rd)':'var(--or)'}" id="sub-${o.id}-${iidx}">${item.cancelled?'취소':item.unitPrice>0?won(item.unitPrice*item.qty):'—'}</td>
@@ -700,7 +700,7 @@ function renderDetailTable(){
           <table class="detail-item-tbl">
             <thead><tr><th>품목명</th><th>카테고리</th><th>수량</th><th>단가</th><th>소계</th></tr></thead>
             <tbody>
-              ${rcvItems.map(item=>{const sub=(item.unitPrice||0)*item.qty;return`<tr><td style="font-weight:500">${item.name}</td><td><span class="tag ${item.cat==='식음료'?'tg':'tb'}">${item.cat}</span></td><td>${item.qty}개</td><td>${item.unitPrice>0?won(item.unitPrice):'미정'}</td><td style="font-weight:500;color:var(--or)">${sub>0?won(sub):'—'}</td></tr>`;}).join('')}
+              ${rcvItems.map(item=>{const sub=(item.unitPrice||0)*item.qty;return`<tr><td style="font-weight:500">${item.name}</td><td><span class="tag ${item.cat==='식음료'?'tg':item.cat==='소모품'?'tb':'tother'}">${item.cat}</span></td><td>${item.qty}개</td><td>${item.unitPrice>0?won(item.unitPrice):'미정'}</td><td style="font-weight:500;color:var(--or)">${sub>0?won(sub):'—'}</td></tr>`;}).join('')}
               <tr class="sub-total-row"><td colspan="4" style="text-align:right">당일 합계</td><td style="color:#7A2D08">${ot>0?won(ot):'—'}</td></tr>
             </tbody>
           </table>
