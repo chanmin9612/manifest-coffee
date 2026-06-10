@@ -82,6 +82,9 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 .item-tbl tr.cancelled-row td:first-child{text-decoration:line-through;color:#9B1C1C}
 .rcv-btn{padding:4px 8px;font-size:11px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:var(--sky);color:#fff}
 .rcv-btn:hover{background:var(--sky2)}
+.order-btn{padding:4px 8px;font-size:11px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:var(--or);color:#fff}
+.order-btn:hover{background:var(--or2)}
+.ordered-lbl{font-size:11px;color:var(--or);font-weight:500}
 .cancel-item-btn{padding:4px 8px;font-size:11px;font-weight:500;border-radius:6px;border:0.5px solid var(--rd);cursor:pointer;background:transparent;color:var(--rd)}
 .done-lbl{font-size:11px;color:var(--sky);font-weight:500}
 .cancelled-lbl{font-size:11px;color:var(--rd);font-weight:500}
@@ -373,20 +376,34 @@ const DEF=[
   {id:34,name:'캐리어',price:'17,500원/200개',unitPrice:17500,unit:'200개',cat:'소모품'},
 ];
 
-let items=JSON.parse(localStorage.getItem('mf2_items')||'null')||DEF;
-// 최초 배포 시 테스트 데이터 초기화 (한 번만 실행)
-if(!localStorage.getItem('mf2_cleaned_v1')){
-  localStorage.removeItem('mf2_orders');
-  localStorage.removeItem('mf2_hist');
-  localStorage.setItem('mf2_cleaned_v1','true');
-}
-let orders=JSON.parse(localStorage.getItem('mf2_orders')||'[]');
-let history=JSON.parse(localStorage.getItem('mf2_hist')||'[]');
+let items=DEF;
+let orders=[];
+let history=[];
 let cart={};
 let activeCat='all';
 let cancelTarget={oid:null,idx:null};
 
-function save(){localStorage.setItem('mf2_items',JSON.stringify(items));localStorage.setItem('mf2_orders',JSON.stringify(orders));localStorage.setItem('mf2_hist',JSON.stringify(history))}
+function save(){
+  localStorage.setItem('mf2_items',JSON.stringify(items));
+  localStorage.setItem('mf2_orders',JSON.stringify(orders));
+  localStorage.setItem('mf2_hist',JSON.stringify(history));
+  // Supabase 백그라운드 동기화
+  sbSave().catch(e=>console.warn('Supabase 저장 실패:', e));
+}
+async function sbSave(){
+  const updates = [
+    {key:'items', value:JSON.stringify(items)},
+    {key:'orders', value:JSON.stringify(orders)},
+    {key:'history', value:JSON.stringify(history)}
+  ];
+  for(const u of updates){
+    await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/rest/v1/app_state?key=eq.'+u.key, {
+      method:'PATCH',
+      headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ','Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ','Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({value:u.value})
+    });
+  }
+}
 function td(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function fd(s){if(!s)return'';const[y,m,d]=s.split('-');return`${y}년 ${+m}월 ${+d}일`}
 function fdS(s){if(!s)return'';const p=s.split('-');return`${+p[1]}월 ${+p[2]}일`}
@@ -477,10 +494,10 @@ function openOrderModal(){
 }
 async function submitOrder(){
   const keys=Object.keys(cart);
-  const oi=keys.map(id=>{const it=items.find(x=>x.id==id);return{...it,qty:cart[id],received:false,cancelled:false,receiveDate:null,unitPrice:it.unitPrice||0}});
+  const oi=keys.map(id=>{const it=items.find(x=>x.id==id);return{...it,qty:cart[id],received:false,cancelled:false,ordered:false,receiveDate:null,unitPrice:it.unitPrice||0}});
   const newOrder={id:Date.now(),date:td(),items:oi,status:'발주중'};
   orders.push(newOrder);cart={};save();closeM('order-modal');renderList();renderCart();updateBadge();
-  toast('발주가 신청되었습니다 📦');go('pending');
+  toast('발주가 신청되었습니다 📦');go('pending');renderPending();
   await sendSlackNotice(newOrder);
 }
 function updateBadge(){const n=orders.filter(o=>o.status==='발주중').length;const b=document.getElementById('pbadge');b.textContent=n+'건 대기';b.style.display=n?'block':'none'}
@@ -505,7 +522,7 @@ function confirmCancelItem(){
 }
 
 function renderPending(){
-  const active=orders.filter(o=>o.status==='발주중');
+  const active=orders.filter(o=>o.status==='발주중'||o.status==='발주완료');
   const done=orders.filter(o=>o.status==='입고완료'||o.status==='부분완료');
   const el=document.getElementById('pend-list');
   if(!active.length){el.innerHTML='<div class="empty">진행 중인 발주가 없습니다</div>';}
@@ -521,13 +538,13 @@ function renderPending(){
           <th style="width:40px;text-align:center">수량</th><th style="width:96px;text-align:center">단가</th>
           <th style="width:86px;text-align:center">소계</th><th style="width:120px;text-align:center">처리</th>
         </tr></thead><tbody id="itbl-${o.id}">
-          ${o.items.map((item,idx)=>`<tr class="${item.received?'done-row':item.cancelled?'cancelled-row':''}" id="itr-${o.id}-${idx}">
+          ${o.items.map((item,iidx)=>`<tr class="${item.received?'done-row':item.cancelled?'cancelled-row':''}" id="itr-${o.id}-${iidx}">
             <td style="font-weight:500">${item.name}</td>
             <td style="text-align:center"><span class="tag ${item.cat==='식음료'?'tg':'tb'}">${item.cat}</span></td>
             <td style="text-align:center">${item.qty}</td>
-            <td style="text-align:center">${(item.received||item.cancelled)?`<span style="font-size:11px;color:var(--color-text-secondary)">${item.unitPrice>0?won(item.unitPrice):'미정'}</span>`:`<input class="price-input" id="pr-${o.id}-${idx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액" onchange="updPrice(${o.id},${idx},this.value)">`}</td>
+            <td style="text-align:center">${(item.received||item.cancelled)?`<span style="font-size:11px;color:var(--color-text-secondary)">${item.unitPrice>0?won(item.unitPrice):'미정'}</span>`:`<input class="price-input" id="pr-${o.id}-${iidx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액" onchange="updPrice(${o.id},${idx},this.value)">`}</td>
             <td style="text-align:center;font-weight:500;color:${item.cancelled?'var(--rd)':'var(--or)'}" id="sub-${o.id}-${idx}">${item.cancelled?'취소':item.unitPrice>0?won(item.unitPrice*item.qty):'—'}</td>
-            <td style="text-align:center">${item.received?`<span class="done-lbl"><i class="ti ti-check"></i> 완료</span>`:item.cancelled?`<span class="cancelled-lbl"><i class="ti ti-ban"></i> 취소</span>`:`<div style="display:flex;gap:4px;justify-content:center"><button class="rcv-btn" onclick="rcvItem(${o.id},${idx})"><i class="ti ti-package"></i> 입고</button><button class="cancel-item-btn" onclick="openCancelItemModal(${o.id},${idx})"><i class="ti ti-ban"></i></button></div>`}</td>
+            <td style="text-align:center">${item.received?`<span class="done-lbl"><i class="ti ti-check"></i> 완료</span>`:item.cancelled?`<span class="cancelled-lbl"><i class="ti ti-ban"></i> 취소</span>`:`<div style="display:flex;gap:4px;justify-content:center">${item.ordered?`<button class="rcv-btn" onclick="rcvItem(${o.id},${iidx})"><i class="ti ti-package"></i> 입고</button>`:`<button class="order-btn" onclick="orderItem(${o.id},${iidx})"><i class="ti ti-check"></i> 발주완료</button>`}<button class="cancel-item-btn" onclick="openCancelItemModal(${o.id},${iidx})"><i class="ti ti-ban"></i></button></div>`}</td>
           </tr>`).join('')}
         </tbody></table></div>
         <div class="all-done-banner" id="alldone-${o.id}"><i class="ti ti-circle-check"></i> 완료 — 기록에 저장됩니다</div>
@@ -545,6 +562,15 @@ function renderPending(){
 }
 
 function updPrice(oid,idx,val){const o=orders.find(x=>x.id===oid);if(!o)return;const p=parsePrice(val);o.items[idx].unitPrice=p;const master=items.find(x=>x.id===o.items[idx].id);if(master&&p>0)master.unitPrice=p;save()}
+function orderItem(oid,idx){
+  const o=orders.find(x=>x.id===oid);if(!o)return;
+  o.items[idx].ordered=true;
+  // 모든 품목이 발주완료 or 취소면 발주 상태를 '발주완료'로
+  const allOrdered=o.items.every(i=>i.ordered||i.cancelled);
+  if(allOrdered) o.status='발주완료';
+  save();renderPending();toast(`${o.items[idx].name} 발주 완료 처리되었습니다`);
+}
+
 function rcvItem(oid,idx){
   const o=orders.find(x=>x.id===oid);if(!o)return;
   const inp=document.getElementById(`pr-${oid}-${idx}`);if(inp){const p=parsePrice(inp.value);if(p>0){o.items[idx].unitPrice=p;const m=items.find(x=>x.id===o.items[idx].id);if(m)m.unitPrice=p;}}
@@ -825,7 +851,55 @@ function closeM(id){document.getElementById(id).classList.remove('on')}
 const days=['일','월','화','수','목','금','토'];
 const now=new Date();
 document.getElementById('hdr-date').textContent=`${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${days[now.getDay()]})`;
-renderList();updateBadge();
+// Supabase에서 데이터 로드
+async function loadData(){
+  showLoading(true);
+  try {
+    const res = await Promise.race([
+      fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/rest/v1/app_state?select=key,value', {
+        headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ','Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ'}
+      }),
+      new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),5000))
+    ]);
+    if(res.ok){
+      const rows = await res.json();
+      if(rows && rows.length > 0){
+        rows.forEach(row=>{
+          try {
+            if(row.key==='items') items=JSON.parse(row.value);
+            if(row.key==='orders') orders=JSON.parse(row.value);
+            if(row.key==='history') history=JSON.parse(row.value);
+          } catch(e){}
+        });
+        // localStorage도 동기화
+        localStorage.setItem('mf2_items',JSON.stringify(items));
+        localStorage.setItem('mf2_orders',JSON.stringify(orders));
+        localStorage.setItem('mf2_hist',JSON.stringify(history));
+      } else {
+        // Supabase에 데이터 없으면 초기 데이터 저장
+        await sbSave();
+      }
+    }
+  } catch(e){
+    // 오프라인 or 타임아웃 - localStorage 사용
+    console.warn('Supabase 로드 실패, 로컬 사용:', e.message);
+    const li=localStorage.getItem('mf2_items');
+    const lo=localStorage.getItem('mf2_orders');
+    const lh=localStorage.getItem('mf2_hist');
+    if(li) items=JSON.parse(li);
+    if(lo) orders=JSON.parse(lo);
+    if(lh) history=JSON.parse(lh);
+  } finally {
+    showLoading(false);
+    renderList();updateBadge();
+  }
+}
+
+function showLoading(show){
+  document.getElementById('loading-overlay').style.display=show?'flex':'none';
+}
+
+loadData();
 </script>
 
 </body>
