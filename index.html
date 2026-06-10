@@ -554,7 +554,7 @@ function renderPending(){
         <div class="all-done-banner" id="alldone-${o.id}"><i class="ti ti-circle-check"></i> 완료 — 기록에 저장됩니다</div>
       </div>`;
     }).join('');
-    active.forEach(o=>{o.items.forEach((item,idx)=>{if(!item.received&&!item.cancelled){const inp=document.getElementById(`pr-${o.id}-${iidx}`);if(inp)inp.addEventListener('input',function(){const p=parsePrice(this.value);const s=document.getElementById(`sub-${o.id}-${iidx}`);if(s)s.textContent=p>0?won(p*item.qty):'—';});}});});
+    active.forEach(o=>{o.items.forEach((item,ii)=>{if(!item.received&&!item.cancelled){const inp=document.getElementById(`pr-${o.id}-${ii}`);if(inp)inp.addEventListener('input',function(){const p=parsePrice(this.value);const s=document.getElementById(`sub-${o.id}-${ii}`);if(s)s.textContent=p>0?won(p*item.qty):'—';});}});});
   }
   const dc=document.getElementById('done-card'),dl=document.getElementById('done-list');
   if(done.length){dc.style.display='block';dl.innerHTML=done.map(o=>{const total=o.items.filter(i=>i.received).reduce((s,i)=>s+(i.unitPrice||0)*i.qty,0);const cnc=o.items.filter(i=>i.cancelled).length;return`<div class="irow"><div class="ii"><div class="in">${fd(o.date)} 발주${cnc>0?` <span class="bdg bgrd" style="font-size:10px">${cnc}취소</span>`:''}</div><div class="ip">총 ${o.items.length}개 · 완료 ${fdS(o.receiveDate||o.date)}${total>0?' · '+won(total):''}</div></div><span class="bdg bgor"><i class="ti ti-check"></i> 완료</span></div>`;}).join('');}
@@ -577,7 +577,7 @@ function orderItem(oid,idx){
 
 function rcvItem(oid,idx){
   const o=orders.find(x=>x.id===oid);if(!o)return;
-  const inp=document.getElementById(`pr-${oid}-${iidx}`);if(inp){const p=parsePrice(inp.value);if(p>0){o.items[idx].unitPrice=p;const m=items.find(x=>x.id===o.items[idx].id);if(m)m.unitPrice=p;}}
+  const inp=document.getElementById(`pr-${oid}-${idx}`);if(inp){const p=parsePrice(inp.value);if(p>0){o.items[idx].unitPrice=p;const m=items.find(x=>x.id===o.items[idx].id);if(m)m.unitPrice=p;}}
   o.items[idx].received=true;o.items[idx].receiveDate=td();
   const allDone=o.items.every(i=>i.received||i.cancelled);
   if(allDone){
@@ -591,7 +591,7 @@ function rcvItem(oid,idx){
   const osEl=document.getElementById('os-'+oid);if(osEl)osEl.textContent=`총 ${tot}개 · 입고 ${rcv} · 취소 ${cnc} · 대기 ${act}`;
   const pfEl=document.getElementById('opfill-'+oid);if(pfEl)pfEl.style.width=pct+'%';
   const pctEl=document.getElementById('opct-'+oid);if(pctEl)pctEl.textContent=pct+'%';
-  const tr=document.getElementById(`itr-${oid}-${iidx}`);
+  const tr=document.getElementById(`itr-${oid}-${idx}`);
   if(tr){tr.classList.add('done-row');tr.cells[3].innerHTML=`<span style="font-size:11px;color:var(--color-text-secondary)">${o.items[idx].unitPrice>0?won(o.items[idx].unitPrice):'미정'}</span>`;tr.cells[4].textContent=o.items[idx].unitPrice>0?won(o.items[idx].unitPrice*o.items[idx].qty):'—';tr.cells[4].style.color='var(--or)';tr.cells[5].innerHTML='<span class="done-lbl"><i class="ti ti-check"></i> 완료</span>';}
   toast(`${o.items[idx].name} 입고 처리됨`);
 }
