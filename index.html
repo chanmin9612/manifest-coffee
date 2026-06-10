@@ -391,18 +391,22 @@ function save(){
   sbSave().catch(e=>console.warn('Supabase 저장 실패:', e));
 }
 async function sbSave(){
-  const updates = [
+  const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ';
+  const upserts = [
     {key:'items', value:JSON.stringify(items)},
     {key:'orders', value:JSON.stringify(orders)},
     {key:'history', value:JSON.stringify(history)}
   ];
-  for(const u of updates){
-    await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/rest/v1/app_state?key=eq.'+u.key, {
-      method:'PATCH',
-      headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ','Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ','Content-Type':'application/json','Prefer':'return=minimal'},
-      body:JSON.stringify({value:u.value})
-    });
-  }
+  await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/rest/v1/app_state', {
+    method:'POST',
+    headers:{
+      'apikey':SKEY,
+      'Authorization':'Bearer '+SKEY,
+      'Content-Type':'application/json',
+      'Prefer':'resolution=merge-duplicates'
+    },
+    body:JSON.stringify(upserts)
+  });
 }
 function td(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function fd(s){if(!s)return'';const[y,m,d]=s.split('-');return`${y}년 ${+m}월 ${+d}일`}
@@ -542,15 +546,15 @@ function renderPending(){
             <td style="font-weight:500">${item.name}</td>
             <td style="text-align:center"><span class="tag ${item.cat==='식음료'?'tg':'tb'}">${item.cat}</span></td>
             <td style="text-align:center">${item.qty}</td>
-            <td style="text-align:center">${(item.received||item.cancelled)?`<span style="font-size:11px;color:var(--color-text-secondary)">${item.unitPrice>0?won(item.unitPrice):'미정'}</span>`:`<input class="price-input" id="pr-${o.id}-${iidx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액" onchange="updPrice(${o.id},${idx},this.value)">`}</td>
-            <td style="text-align:center;font-weight:500;color:${item.cancelled?'var(--rd)':'var(--or)'}" id="sub-${o.id}-${idx}">${item.cancelled?'취소':item.unitPrice>0?won(item.unitPrice*item.qty):'—'}</td>
+            <td style="text-align:center">${(item.received||item.cancelled)?`<span style="font-size:11px;color:var(--color-text-secondary)">${item.unitPrice>0?won(item.unitPrice):'미정'}</span>`:`<input class="price-input" id="pr-${o.id}-${iidx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액" onchange="updPrice(${o.id},${iidx},this.value)">`}</td>
+            <td style="text-align:center;font-weight:500;color:${item.cancelled?'var(--rd)':'var(--or)'}" id="sub-${o.id}-${iidx}">${item.cancelled?'취소':item.unitPrice>0?won(item.unitPrice*item.qty):'—'}</td>
             <td style="text-align:center">${item.received?`<span class="done-lbl"><i class="ti ti-check"></i> 완료</span>`:item.cancelled?`<span class="cancelled-lbl"><i class="ti ti-ban"></i> 취소</span>`:`<div style="display:flex;gap:4px;justify-content:center">${item.ordered?`<button class="rcv-btn" onclick="rcvItem(${o.id},${iidx})"><i class="ti ti-package"></i> 입고</button>`:`<button class="order-btn" onclick="orderItem(${o.id},${iidx})"><i class="ti ti-check"></i> 발주완료</button>`}<button class="cancel-item-btn" onclick="openCancelItemModal(${o.id},${iidx})"><i class="ti ti-ban"></i></button></div>`}</td>
           </tr>`).join('')}
         </tbody></table></div>
         <div class="all-done-banner" id="alldone-${o.id}"><i class="ti ti-circle-check"></i> 완료 — 기록에 저장됩니다</div>
       </div>`;
     }).join('');
-    active.forEach(o=>{o.items.forEach((item,idx)=>{if(!item.received&&!item.cancelled){const inp=document.getElementById(`pr-${o.id}-${idx}`);if(inp)inp.addEventListener('input',function(){const p=parsePrice(this.value);const s=document.getElementById(`sub-${o.id}-${idx}`);if(s)s.textContent=p>0?won(p*item.qty):'—';});}});});
+    active.forEach(o=>{o.items.forEach((item,idx)=>{if(!item.received&&!item.cancelled){const inp=document.getElementById(`pr-${o.id}-${iidx}`);if(inp)inp.addEventListener('input',function(){const p=parsePrice(this.value);const s=document.getElementById(`sub-${o.id}-${iidx}`);if(s)s.textContent=p>0?won(p*item.qty):'—';});}});});
   }
   const dc=document.getElementById('done-card'),dl=document.getElementById('done-list');
   if(done.length){dc.style.display='block';dl.innerHTML=done.map(o=>{const total=o.items.filter(i=>i.received).reduce((s,i)=>s+(i.unitPrice||0)*i.qty,0);const cnc=o.items.filter(i=>i.cancelled).length;return`<div class="irow"><div class="ii"><div class="in">${fd(o.date)} 발주${cnc>0?` <span class="bdg bgrd" style="font-size:10px">${cnc}취소</span>`:''}</div><div class="ip">총 ${o.items.length}개 · 완료 ${fdS(o.receiveDate||o.date)}${total>0?' · '+won(total):''}</div></div><span class="bdg bgor"><i class="ti ti-check"></i> 완료</span></div>`;}).join('');}
@@ -573,7 +577,7 @@ function orderItem(oid,idx){
 
 function rcvItem(oid,idx){
   const o=orders.find(x=>x.id===oid);if(!o)return;
-  const inp=document.getElementById(`pr-${oid}-${idx}`);if(inp){const p=parsePrice(inp.value);if(p>0){o.items[idx].unitPrice=p;const m=items.find(x=>x.id===o.items[idx].id);if(m)m.unitPrice=p;}}
+  const inp=document.getElementById(`pr-${oid}-${iidx}`);if(inp){const p=parsePrice(inp.value);if(p>0){o.items[idx].unitPrice=p;const m=items.find(x=>x.id===o.items[idx].id);if(m)m.unitPrice=p;}}
   o.items[idx].received=true;o.items[idx].receiveDate=td();
   const allDone=o.items.every(i=>i.received||i.cancelled);
   if(allDone){
@@ -587,7 +591,7 @@ function rcvItem(oid,idx){
   const osEl=document.getElementById('os-'+oid);if(osEl)osEl.textContent=`총 ${tot}개 · 입고 ${rcv} · 취소 ${cnc} · 대기 ${act}`;
   const pfEl=document.getElementById('opfill-'+oid);if(pfEl)pfEl.style.width=pct+'%';
   const pctEl=document.getElementById('opct-'+oid);if(pctEl)pctEl.textContent=pct+'%';
-  const tr=document.getElementById(`itr-${oid}-${idx}`);
+  const tr=document.getElementById(`itr-${oid}-${iidx}`);
   if(tr){tr.classList.add('done-row');tr.cells[3].innerHTML=`<span style="font-size:11px;color:var(--color-text-secondary)">${o.items[idx].unitPrice>0?won(o.items[idx].unitPrice):'미정'}</span>`;tr.cells[4].textContent=o.items[idx].unitPrice>0?won(o.items[idx].unitPrice*o.items[idx].qty):'—';tr.cells[4].style.color='var(--or)';tr.cells[5].innerHTML='<span class="done-lbl"><i class="ti ti-check"></i> 완료</span>';}
   toast(`${o.items[idx].name} 입고 처리됨`);
 }
@@ -896,7 +900,8 @@ async function loadData(){
 }
 
 function showLoading(show){
-  document.getElementById('loading-overlay').style.display=show?'flex':'none';
+  const el=document.getElementById('loading-overlay');
+  if(el) el.style.display=show?'flex':'none';
 }
 
 loadData();
