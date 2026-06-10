@@ -326,7 +326,10 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 async function sendSlackNotice(order) {
   const itemList = order.items.map(i => `• ${i.name} × ${i.qty}개`).join('\n');
-  const message = `🛒 *새 발주 신청*\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
+  const isOrderComplete = order._type === '발주완료';
+  const message = isOrderComplete
+    ? `✅ *발주 완료*\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목 발주 완료`
+    : `🛒 *새 발주 신청*\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
   try {
     await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/functions/v1/notify-kakaowork', {
       method: 'POST',
@@ -566,13 +569,20 @@ function renderPending(){
 }
 
 function updPrice(oid,idx,val){const o=orders.find(x=>x.id===oid);if(!o)return;const p=parsePrice(val);o.items[idx].unitPrice=p;const master=items.find(x=>x.id===o.items[idx].id);if(master&&p>0)master.unitPrice=p;save()}
-function orderItem(oid,idx){
+async function orderItem(oid,idx){
   const o=orders.find(x=>x.id===oid);if(!o)return;
   o.items[idx].ordered=true;
   // 모든 품목이 발주완료 or 취소면 발주 상태를 '발주완료'로
   const allOrdered=o.items.every(i=>i.ordered||i.cancelled);
   if(allOrdered) o.status='발주완료';
   save();renderPending();toast(`${o.items[idx].name} 발주 완료 처리되었습니다`);
+  // 슬랙 알림
+  const itemList = o.items.filter(i=>i.ordered).map(i=>`• ${i.name} × ${i.qty}개`).join('\n');
+  await sendSlackNotice({
+    date: o.date,
+    items: o.items.filter(i=>i.ordered),
+    _type: '발주완료'
+  });
 }
 
 function rcvItem(oid,idx){
