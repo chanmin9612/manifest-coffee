@@ -866,7 +866,7 @@ async function loadData(){
       if(rows && rows.length > 0){
         rows.forEach(row=>{
           try {
-            if(row.key==='items') items=JSON.parse(row.value);
+            if(row.key==='items'){ const parsed=JSON.parse(row.value); items=parsed.length>0?parsed:DEF; }
             if(row.key==='orders') orders=JSON.parse(row.value);
             if(row.key==='history') history=JSON.parse(row.value);
           } catch(e){}
@@ -891,7 +891,7 @@ async function loadData(){
     if(lh) history=JSON.parse(lh);
   } finally {
     showLoading(false);
-    renderList();updateBadge();
+    renderList();renderPending();updateBadge();
   }
 }
 
