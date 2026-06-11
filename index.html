@@ -614,8 +614,8 @@ function renderPending(){
           :`<input class="price-input" id="qty-${o.id}-${realIdx}" value="${item.qty}" type="number" min="1" style="width:50px;text-align:center" onchange="updQty(${o.id},${realIdx},this.value)"><span style="font-size:11px;color:var(--color-text-secondary)">${unit}</span>`;
         const dateCell=isFirst
           ?`<td rowspan="${activeItems.length}" style="white-space:nowrap;text-align:center;vertical-align:middle;padding:8px 10px">
-            <div style="font-size:14px;font-weight:500;color:var(--color-text-primary)">${fdDate(o.date)}</div>
-            <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${fdTime(o.date)}</div>
+            <span style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${fdDate(o.date)}</span>
+            <span style="font-size:11px;color:var(--color-text-secondary);margin-left:4px">${fdTime(o.date)}</span>
           </td>`
           :'';
         const ordererCell=isFirst
@@ -808,7 +808,10 @@ function renderDetailTable(){
             ${sortedOrders.flatMap(o=>o.items.filter(i=>i.received).map(item=>{
               const sub=(item.unitPrice||0)*item.qty;
               const unit=item.unit?` (${item.unit})`:'';
-              return`<tr><td style="font-size:11px;color:var(--color-text-secondary)">${fdS(o.receiveDate||o.date)}</td><td style="font-weight:500">${item.name}</td><td>${item.qty}개${unit}</td><td>${item.unitPrice>0?won(item.unitPrice):'미정'}</td><td style="font-weight:500;color:var(--or)">${sub>0?won(sub):'—'}</td></tr>`;
+              return`<tr><td style="white-space:nowrap;text-align:center;padding:6px 8px">
+                <span style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${fdDate(o.receiveDate||o.date)}</span>
+                <span style="font-size:11px;color:var(--color-text-secondary);margin-left:4px">${fdTime(o.receiveDate||o.date)}</span>
+              </td><td style="font-weight:500">${item.name}</td><td>${item.qty}개${unit}</td><td>${item.unitPrice>0?won(item.unitPrice):'미정'}</td><td style="font-weight:500;color:var(--or)">${sub>0?won(sub):'—'}</td></tr>`;
             })).join('')}
             <tr class="sub-total-row"><td colspan="4" style="text-align:right;font-weight:500">${fmkF(mdata.month)} 합계</td><td style="color:#7A2D08;font-weight:500">${monthTotal>0?won(monthTotal):'—'}</td></tr>
           </tbody>
