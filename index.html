@@ -141,7 +141,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 .detail-item-tbl td:not(:first-child){text-align:right}
 .detail-item-tbl tr:last-child td{border-bottom:none}
 .detail-item-tbl tr.sub-total-row td{background:var(--orl);font-weight:500;color:#7A2D08}
-.modal-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:flex-start;justify-content:center;padding-top:80px}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;padding:20px}
 .modal-overlay.on{display:flex}
 .modal{background:#fff;border-radius:12px;padding:24px;width:100%;max-width:420px;border:none;box-shadow:0 8px 40px rgba(0,0,0,.18);max-height:80vh;overflow-y:auto}
 .mhdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--ln)}
@@ -275,6 +275,16 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
     <div class="st"><i class="ti ti-list" aria-hidden="true" style="color:var(--sky)"></i>등록 품목 (<span id="item-total">0</span>종)</div>
     <div id="all-items"></div>
   </div>
+  <div class="card">
+    <div class="st"><i class="ti ti-users" aria-hidden="true" style="color:var(--or)"></i>직원 관리</div>
+    <div style="display:grid;gap:10px">
+      <div id="staff-list" style="display:grid;gap:6px"></div>
+      <div style="display:flex;gap:8px">
+        <input class="sinput" id="new-staff-name" placeholder="직원 이름 입력" style="margin:0;flex:1" maxlength="10">
+        <button class="btn bp" onclick="addStaff()" style="flex-shrink:0"><i class="ti ti-plus"></i>추가</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- 품목 수정 모달 -->
@@ -305,6 +315,12 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
   <div class="modal">
     <div class="mhdr"><div class="mtitle"><i class="ti ti-clipboard-check" style="color:var(--or);margin-right:6px"></i>발주 확인</div><button class="mclose" onclick="closeM('order-modal')"><i class="ti ti-x"></i></button></div>
     <div id="order-rcpt"></div>
+    <div style="margin:12px 0 4px">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:4px"><i class="ti ti-user" style="font-size:12px;margin-right:3px"></i>발주자</label>
+      <select class="mo-sel" id="orderer-name" style="width:100%">
+        <option value="">직원을 선택해주세요</option>
+      </select>
+    </div>
     <div class="brow"><button class="btn bp" onclick="submitOrder()"><i class="ti ti-check" aria-hidden="true"></i>발주 확정</button><button class="btn bs" onclick="closeM('order-modal')">취소</button></div>
   </div>
 </div>
@@ -333,7 +349,7 @@ async function sendSlackNotice(order) {
   } else if(type === '취소'){
     message = `❌ *발주 취소*\n📅 ${fd(order.date)}\n\n${itemList}`;
   } else {
-    message = `🛒 *새 발주 신청*\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
+    message = `🛒 *새 발주 신청*\n📅 ${fd(order.date)}\n👤 발주자: ${order.orderer||'미입력'}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
   }
   try {
     await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/functions/v1/notify-kakaowork', {
@@ -385,6 +401,7 @@ const DEF=[
 ];
 
 let items=DEF;
+let staff=[];
 let orders=[];
 let history=[];
 let cart={};
@@ -395,15 +412,26 @@ function save(){
   localStorage.setItem('mf2_items',JSON.stringify(items));
   localStorage.setItem('mf2_orders',JSON.stringify(orders));
   localStorage.setItem('mf2_hist',JSON.stringify(history));
+
   // Supabase 백그라운드 동기화
   sbSave().catch(e=>console.warn('Supabase 저장 실패:', e));
 }
+async function sbSaveStaff(){
+  const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ';
+  await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/rest/v1/app_state', {
+    method:'POST',
+    headers:{'apikey':SKEY,'Authorization':'Bearer '+SKEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+    body:JSON.stringify([{key:'staff',value:JSON.stringify(staff)}])
+  });
+}
+
 async function sbSave(){
   const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ';
   const upserts = [
     {key:'items', value:JSON.stringify(items)},
     {key:'orders', value:JSON.stringify(orders)},
-    {key:'history', value:JSON.stringify(history)}
+    {key:'history', value:JSON.stringify(history)},
+    {key:'staff', value:JSON.stringify(staff)}
   ];
   await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/rest/v1/app_state', {
     method:'POST',
@@ -417,8 +445,10 @@ async function sbSave(){
   });
 }
 function td(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
-function fd(s){if(!s)return'';const[y,m,d]=s.split('-');return`${y}년 ${+m}월 ${+d}일`}
+function fd(s){if(!s)return'';const date=s.split(' ')[0];const[y,m,d]=date.split('-');return`${y}년 ${+m}월 ${+d}일`}
 function fdS(s){if(!s)return'';const parts=s.split(' ');const p=parts[0].split('-');const time=parts[1]?` ${parts[1]}`:'';return`${+p[1]}/${+p[2]}${time}`}
+function fdDate(s){if(!s)return'';const p=s.split(' ')[0].split('-');return`${+p[1]}/${+p[2]}`}
+function fdTime(s){if(!s)return'';const parts=s.split(' ');return parts[1]||''}
 function mk(s){return(s||td()).slice(0,7)}
 function fmk(m){const[y,mo]=m.split('-');return`${y}.${mo}`}
 function fmkF(m){const[y,mo]=m.split('-');return`${y}년 ${+mo}월`}
@@ -435,7 +465,7 @@ function go(name){
   document.getElementById('panel-'+name).classList.add('on');
   document.getElementById('tab-'+name).classList.add('on');
   if(name==='history')renderHistory();
-  if(name==='items')renderAllItems();
+  if(name==='items'){renderAllItems();renderStaffList();}
   if(name==='pending')renderPending();
 }
 function setCat(btn,cat){activeCat=cat;document.querySelectorAll('.fb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderList()}
@@ -494,6 +524,11 @@ function rmCart(id){delete cart[id];renderList();renderCart()}
 function clearCart(){cart={};renderList();renderCart()}
 
 function openOrderModal(){
+  // 발주자 드롭다운 업데이트
+  const sel=document.getElementById('orderer-name');
+  if(sel){
+    sel.innerHTML='<option value="">직원을 선택해주세요</option>'+staff.map(n=>`<option value="${n}">${n}</option>`).join('');
+  }
   const keys=Object.keys(cart);
   if(!keys.length){toast('품목을 선택해주세요');return}
   document.getElementById('order-rcpt').innerHTML=`
@@ -507,8 +542,11 @@ function openOrderModal(){
 async function submitOrder(){
   const keys=Object.keys(cart);
   const oi=keys.map(id=>{const it=items.find(x=>x.id==id);return{...it,qty:cart[id],received:false,cancelled:false,ordered:false,receiveDate:null,unitPrice:it.unitPrice||0}});
-  const newOrder={id:Date.now(),date:td(),items:oi,status:'발주중'};
-  orders.push(newOrder);cart={};save();closeM('order-modal');renderList();renderCart();updateBadge();
+  const ordererName=document.getElementById('orderer-name').value.trim()||'미입력';
+  const newOrder={id:Date.now(),date:td(),items:oi,status:'발주중',orderer:ordererName};
+  orders.push(newOrder);cart={};save();closeM('order-modal');
+  document.getElementById('orderer-name').value='';
+  renderList();renderCart();updateBadge();
   toast('발주가 신청되었습니다 📦');go('pending');renderPending();
   await sendSlackNotice(newOrder);
 }
@@ -544,41 +582,83 @@ function renderPending(){
   const active=orders.filter(o=>o.status==='발주중'||o.status==='발주완료');
   const done=orders.filter(o=>o.status==='입고완료'||o.status==='부분완료');
   const el=document.getElementById('pend-list');
-  if(!active.length){el.innerHTML='<div class="empty">진행 중인 발주가 없습니다</div>';}
-  else{
-    el.innerHTML=active.map(o=>{
-      const tot=o.items.length,rcv=o.items.filter(i=>i.received).length,cnc=o.items.filter(i=>i.cancelled).length,act=tot-rcv-cnc,pct=Math.round(rcv/tot*100);
-      return`<div class="ocard" id="oc-${o.id}">
-        <div class="oh"><div><div class="ot">${fd(o.date)} 발주</div><div class="os" id="os-${o.id}">총 ${tot}개 · 입고 ${rcv} · 취소 ${cnc} · 대기 ${act}</div></div><span class="bdg bgsk">배송중</span></div>
-        <div class="pbar-wrap"><div class="pbar-labels"><span>입고 진행률</span><span id="opct-${o.id}">${pct}%</span></div><div class="pbar"><div class="pfill" id="opfill-${o.id}" style="width:${pct}%"></div></div></div>
-        <div style="margin-bottom:8px;padding:7px 10px;background:var(--orl);border-radius:var(--border-radius-md);font-size:11px;color:#7A2D08;font-weight:500"><i class="ti ti-pencil" aria-hidden="true" style="font-size:12px"></i> 단가 수정 후 품목별 입고/취소 처리</div>
-        <div style="overflow-x:auto"><table class="item-tbl"><thead><tr>
-          <th style="min-width:100px">품목명</th><th style="width:58px;text-align:center">카테고리</th>
-          <th style="width:40px;text-align:center">수량</th><th style="width:96px;text-align:center">단가</th>
-          <th style="width:86px;text-align:center">소계</th><th style="width:120px;text-align:center">처리</th>
-        </tr></thead><tbody id="itbl-${o.id}">
-          ${o.items.map((item,iidx)=>`<tr class="${item.received?'done-row':item.cancelled?'cancelled-row':''}" id="itr-${o.id}-${iidx}">
-            <td style="font-weight:500">${item.name}</td>
-            <td style="text-align:center"><span class="tag ${item.cat==='식음료'?'tg':item.cat==='소모품'?'tb':'tother'}">${item.cat}</span></td>
-            <td style="text-align:center">${(item.received||item.cancelled)?`<span style="font-size:13px">${item.qty}</span>`:`<input class="price-input" id="qty-${o.id}-${iidx}" value="${item.qty}" type="number" min="1" style="width:55px;text-align:center" onchange="updQty(${o.id},${iidx},this.value)">`}</td>
-            <td style="text-align:center">${(item.received||item.cancelled)?`<span style="font-size:11px;color:var(--color-text-secondary)">${item.unitPrice>0?won(item.unitPrice):'미정'}</span>`:`<input class="price-input" id="pr-${o.id}-${iidx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액" onchange="updPrice(${o.id},${iidx},this.value)">`}</td>
-            <td style="text-align:center;font-weight:500;color:${item.cancelled?'var(--rd)':'var(--or)'}" id="sub-${o.id}-${iidx}">${item.cancelled?'취소':item.unitPrice>0?won(item.unitPrice*item.qty):'—'}</td>
-            <td style="text-align:center">${item.received?`<span class="done-lbl"><i class="ti ti-check"></i> 완료</span>`:item.cancelled?`<span class="cancelled-lbl"><i class="ti ti-ban"></i> 취소</span>`:`<div style="display:flex;gap:4px;justify-content:center">${item.ordered?`<button class="rcv-btn" onclick="rcvItem(${o.id},${iidx})"><i class="ti ti-package"></i> 입고</button>`:`<button class="order-btn" onclick="orderItem(${o.id},${iidx})"><i class="ti ti-check"></i> 발주완료</button>`}<button class="cancel-item-btn" onclick="openCancelItemModal(${o.id},${iidx})"><i class="ti ti-ban"></i></button></div>`}</td>
-          </tr>`).join('')}
-        </tbody></table></div>
-        <div class="all-done-banner" id="alldone-${o.id}"><i class="ti ti-circle-check"></i> 완료 — 기록에 저장됩니다</div>
-      </div>`;
-    }).join('');
-    active.forEach(o=>{o.items.forEach((item,ii)=>{if(!item.received&&!item.cancelled){const inp=document.getElementById(`pr-${o.id}-${ii}`);if(inp)inp.addEventListener('input',function(){const p=parsePrice(this.value);const s=document.getElementById(`sub-${o.id}-${ii}`);if(s)s.textContent=p>0?won(p*item.qty):'—';});}});});
+
+  if(!active.length){
+    el.innerHTML='<div class="empty">진행 중인 발주가 없습니다</div>';
+  } else {
+    // 날짜 오름차순 정렬
+    const sorted=[...active].sort((a,b)=>a.date.localeCompare(b.date));
+    let rows='';
+    sorted.forEach((o,oidx)=>{
+      const activeItems=o.items.filter(i=>!i.cancelled);
+      const oi=orders.indexOf(o);
+      activeItems.forEach((item,iidx)=>{
+        const realIdx=o.items.indexOf(item);
+        const isFirst=iidx===0;
+        const unit=item.unit?` (${item.unit})`:'';
+        const statusBadge=item.received
+          ?`<span class="bdg bgok"><i class="ti ti-check"></i> 완료</span>`
+          :item.ordered
+          ?`<span class="bdg bgor"><i class="ti ti-truck-delivery"></i> 발주완료</span>`
+          :`<span class="bdg bgsk"><i class="ti ti-clock"></i> 대기중</span>`;
+        const actionBtn=item.received||item.cancelled
+          ?'—'
+          :item.ordered
+          ?`<div style="display:flex;gap:4px;justify-content:center"><button class="rcv-btn" onclick="rcvItem(${o.id},${realIdx})"><i class="ti ti-package"></i> 입고</button><button class="cancel-item-btn" onclick="openCancelItemModal(${o.id},${realIdx})"><i class="ti ti-ban"></i></button></div>`
+          :`<div style="display:flex;gap:4px;justify-content:center"><button class="order-btn" onclick="orderItem(${o.id},${realIdx})"><i class="ti ti-check"></i> 발주완료</button><button class="cancel-item-btn" onclick="openCancelItemModal(${o.id},${realIdx})"><i class="ti ti-ban"></i></button></div>`;
+        const priceCell=item.received||item.cancelled
+          ?`<span style="font-size:11px;color:var(--color-text-secondary)">${item.unitPrice>0?won(item.unitPrice):'미정'}</span>`
+          :`<input class="price-input" id="pr-${o.id}-${realIdx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액" onchange="updPrice(${o.id},${realIdx},this.value)">`;
+        const qtyCell=item.received||item.cancelled
+          ?`<span>${item.qty}개${unit}</span>`
+          :`<input class="price-input" id="qty-${o.id}-${realIdx}" value="${item.qty}" type="number" min="1" style="width:50px;text-align:center" onchange="updQty(${o.id},${realIdx},this.value)"><span style="font-size:11px;color:var(--color-text-secondary)">${unit}</span>`;
+        const dateCell=isFirst
+          ?`<td rowspan="${activeItems.length}" style="white-space:nowrap;text-align:center;vertical-align:middle;padding:8px 10px">
+            <div style="font-size:14px;font-weight:500;color:var(--color-text-primary)">${fdDate(o.date)}</div>
+            <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${fdTime(o.date)}</div>
+          </td>`
+          :'';
+        const ordererCell=isFirst
+          ?`<td rowspan="${activeItems.length}" style="font-size:12px;font-weight:500;color:var(--sky);text-align:center;vertical-align:middle">${o.orderer||'—'}</td>`
+          :'';
+        rows+=`<tr class="${item.received?'done-row':item.cancelled?'cancelled-row':''}" id="itr-${o.id}-${realIdx}">
+          ${dateCell}
+          <td style="font-weight:500;text-align:left">${item.name}</td>
+          <td style="text-align:center">${qtyCell}</td>
+          <td style="text-align:center">${priceCell}</td>
+          <td id="sub-${o.id}-${realIdx}" style="text-align:center;font-size:12px;color:var(--or)">${item.unitPrice>0?won(item.unitPrice*item.qty):'—'}</td>
+          <td style="text-align:center">${statusBadge}</td>
+          <td style="text-align:center">${actionBtn}</td>
+          ${ordererCell}
+        </tr>`;
+      });
+    });
+    el.innerHTML=`<div style="overflow-x:auto">
+      <table class="item-tbl" style="width:100%;font-size:12px">
+        <thead><tr>
+          <th style="min-width:70px">날짜</th>
+          <th style="text-align:left;min-width:90px">품목명</th>
+          <th style="min-width:80px">수량</th>
+          <th style="min-width:70px">단가</th>
+          <th style="min-width:60px">소계</th>
+          <th style="min-width:70px">상태</th>
+          <th style="min-width:100px">처리</th>
+          <th style="min-width:60px">발주자</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
   }
+
+  // 완료된 발주
   const dc=document.getElementById('done-card'),dl=document.getElementById('done-list');
-  if(done.length){dc.style.display='block';dl.innerHTML=done.map(o=>{const total=o.items.filter(i=>i.received).reduce((s,i)=>s+(i.unitPrice||0)*i.qty,0);const cnc=o.items.filter(i=>i.cancelled).length;return`<div class="irow"><div class="ii"><div class="in">${fd(o.date)} 발주${cnc>0?` <span class="bdg bgrd" style="font-size:10px">${cnc}취소</span>`:''}</div><div class="ip">총 ${o.items.length}개 · 완료 ${fdS(o.receiveDate||o.date)}${total>0?' · '+won(total):''}</div></div><span class="bdg bgor"><i class="ti ti-check"></i> 완료</span></div>`;}).join('');}
-  else dc.style.display='none';
-  const cc=document.getElementById('cancelled-card'),cl=document.getElementById('cancelled-list');
-  const fullCnc=orders.filter(o=>o.status==='전체취소');
-  if(fullCnc.length){cc.style.display='block';cl.innerHTML=fullCnc.map(o=>`<div class="irow"><div class="ii"><div class="in">${fd(o.date)} 발주</div><div class="ip" style="color:var(--rd)">전체 취소 · 품목 ${o.items.length}개</div></div><span class="bdg bgrd"><i class="ti ti-ban"></i> 전체취소</span></div>`).join('');}
-  else cc.style.display='none';
+  if(done.length){
+    dc.style.display='block';
+    dl.innerHTML=done.map(o=>`<div class="irow"><div class="ii"><div class="in">${fd(o.date)} 발주${o.orderer?` · <span style="color:var(--sky);font-size:12px">${o.orderer}</span>`:''}</div><div class="ip">총 ${o.items.length}개 품목 · 입고 ${o.items.filter(i=>i.received).length}개</div></div><span class="bdg bgok"><i class="ti ti-circle-check"></i> 완료</span></div>`).join('');
+  } else dc.style.display='none';
+  const cc=document.getElementById('cancelled-card');
+  cc.style.display='none';
 }
+
 
 function updQty(oid,idx,val){
   const o=orders.find(x=>x.id===oid);if(!o)return;
@@ -822,6 +902,39 @@ function saveEditItem(){
   save();closeM('edit-item-modal');renderAllItems();renderList();
   toast(`'${name}' 수정되었습니다`);
 }
+function renderStaffList(){
+  const el=document.getElementById('staff-list');
+  if(!el)return;
+  if(!staff.length){el.innerHTML='<div style="font-size:12px;color:#aaa;text-align:center;padding:8px">등록된 직원이 없습니다</div>';return;}
+  el.innerHTML=staff.map((name,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--sl);border-radius:8px;border:0.5px solid var(--ln)">
+      <span style="font-size:13px;font-weight:500"><i class="ti ti-user" style="font-size:12px;color:var(--sky);margin-right:5px"></i>${name}</span>
+      <button onclick="removeStaff(${i})" style="background:none;border:none;cursor:pointer;color:var(--rd);font-size:14px"><i class="ti ti-x"></i></button>
+    </div>`).join('');
+  // 발주자 드롭다운 업데이트
+  const sel=document.getElementById('orderer-name');
+  if(sel){
+    const cur=sel.value;
+    sel.innerHTML='<option value="">직원을 선택해주세요</option>'+staff.map(n=>`<option value="${n}">${n}</option>`).join('');
+    if(cur)sel.value=cur;
+  }
+}
+function addStaff(){
+  const inp=document.getElementById('new-staff-name');
+  const name=inp.value.trim();
+  if(!name){toast('이름을 입력해주세요');return;}
+  if(staff.includes(name)){toast('이미 등록된 직원이에요');return;}
+  staff.push(name);
+  save();renderStaffList();inp.value='';
+  toast(`'${name}' 직원이 추가되었습니다`);
+}
+function removeStaff(idx){
+  if(!confirm(`'${staff[idx]}' 직원을 삭제하시겠습니까?`))return;
+  staff.splice(idx,1);
+  save();renderStaffList();
+  toast('직원이 삭제되었습니다');
+}
+
 function deleteItem(){
   const it=items.find(x=>x.id===editTargetId);
   if(!it)return;
@@ -982,9 +1095,10 @@ async function silentReload(){
           if(row.key==='items'){ const p=JSON.parse(row.value); if(p.length>0) items=p; }
           if(row.key==='orders') orders=JSON.parse(row.value);
           if(row.key==='history') history=JSON.parse(row.value);
+          if(row.key==='staff') staff=JSON.parse(row.value);
         }catch(e){}
       });
-      renderList();renderPending();renderAllItems();updateBadge();
+      renderList();renderPending();renderAllItems();renderStaffList();updateBadge();
     }
   } catch(e){ console.warn('실시간 로드 실패:', e); }
 }
