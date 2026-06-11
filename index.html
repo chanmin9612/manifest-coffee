@@ -326,10 +326,15 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 async function sendSlackNotice(order) {
   const itemList = order.items.map(i => `• ${i.name} × ${i.qty}개`).join('\n');
-  const isOrderComplete = order._type === '발주완료';
-  const message = isOrderComplete
-    ? `✅ *발주 완료*\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목 발주 완료`
-    : `🛒 *새 발주 신청*\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
+  const type = order._type;
+  let message;
+  if(type === '발주완료'){
+    message = `✅ *발주 완료*\n📅 ${fd(order.date)}\n\n${itemList}`;
+  } else if(type === '취소'){
+    message = `❌ *발주 취소*\n📅 ${fd(order.date)}\n\n${itemList}`;
+  } else {
+    message = `🛒 *새 발주 신청*\n📅 ${fd(order.date)}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
+  }
   try {
     await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/functions/v1/notify-kakaowork', {
       method: 'POST',
@@ -411,9 +416,9 @@ async function sbSave(){
     body:JSON.stringify(upserts)
   });
 }
-function td(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function td(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
 function fd(s){if(!s)return'';const[y,m,d]=s.split('-');return`${y}년 ${+m}월 ${+d}일`}
-function fdS(s){if(!s)return'';const p=s.split('-');return`${+p[1]}월 ${+p[2]}일`}
+function fdS(s){if(!s)return'';const parts=s.split(' ');const p=parts[0].split('-');const time=parts[1]?` ${parts[1]}`:'';return`${+p[1]}/${+p[2]}${time}`}
 function mk(s){return(s||td()).slice(0,7)}
 function fmk(m){const[y,mo]=m.split('-');return`${y}.${mo}`}
 function fmkF(m){const[y,mo]=m.split('-');return`${y}년 ${+mo}월`}
@@ -525,7 +530,14 @@ function confirmCancelItem(){
     if(o.status!=='전체취소'){const m=mk(),md=history.find(h=>h.month===m)||(history.push({month:m,orders:[]}),history[history.length-1]);md.orders.push(JSON.parse(JSON.stringify(o)));}
     orders=orders.filter(x=>x.id!==oid);
   }
-  save();closeM('cancel-item-modal');updateBadge();renderPending();toast(`${itemName} 품목이 취소되었습니다`);cancelTarget={oid:null,idx:null};
+  save();closeM('cancel-item-modal');updateBadge();renderPending();toast(`${itemName} 품목이 취소되었습니다`);
+  // 슬랙 알림 - 취소 품목
+  sendSlackNotice({
+    date: o.date,
+    items: [o.items[idx]],
+    _type: '취소'
+  });
+  cancelTarget={oid:null,idx:null};
 }
 
 function renderPending(){
@@ -548,7 +560,7 @@ function renderPending(){
           ${o.items.map((item,iidx)=>`<tr class="${item.received?'done-row':item.cancelled?'cancelled-row':''}" id="itr-${o.id}-${iidx}">
             <td style="font-weight:500">${item.name}</td>
             <td style="text-align:center"><span class="tag ${item.cat==='식음료'?'tg':item.cat==='소모품'?'tb':'tother'}">${item.cat}</span></td>
-            <td style="text-align:center">${item.qty}</td>
+            <td style="text-align:center">${(item.received||item.cancelled)?`<span style="font-size:13px">${item.qty}</span>`:`<input class="price-input" id="qty-${o.id}-${iidx}" value="${item.qty}" type="number" min="1" style="width:55px;text-align:center" onchange="updQty(${o.id},${iidx},this.value)">`}</td>
             <td style="text-align:center">${(item.received||item.cancelled)?`<span style="font-size:11px;color:var(--color-text-secondary)">${item.unitPrice>0?won(item.unitPrice):'미정'}</span>`:`<input class="price-input" id="pr-${o.id}-${iidx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액" onchange="updPrice(${o.id},${iidx},this.value)">`}</td>
             <td style="text-align:center;font-weight:500;color:${item.cancelled?'var(--rd)':'var(--or)'}" id="sub-${o.id}-${iidx}">${item.cancelled?'취소':item.unitPrice>0?won(item.unitPrice*item.qty):'—'}</td>
             <td style="text-align:center">${item.received?`<span class="done-lbl"><i class="ti ti-check"></i> 완료</span>`:item.cancelled?`<span class="cancelled-lbl"><i class="ti ti-ban"></i> 취소</span>`:`<div style="display:flex;gap:4px;justify-content:center">${item.ordered?`<button class="rcv-btn" onclick="rcvItem(${o.id},${iidx})"><i class="ti ti-package"></i> 입고</button>`:`<button class="order-btn" onclick="orderItem(${o.id},${iidx})"><i class="ti ti-check"></i> 발주완료</button>`}<button class="cancel-item-btn" onclick="openCancelItemModal(${o.id},${iidx})"><i class="ti ti-ban"></i></button></div>`}</td>
@@ -568,6 +580,17 @@ function renderPending(){
   else cc.style.display='none';
 }
 
+function updQty(oid,idx,val){
+  const o=orders.find(x=>x.id===oid);if(!o)return;
+  const q=parseInt(val)||1;
+  if(q<1)return;
+  o.items[idx].qty=q;
+  // 소계 업데이트
+  const s=document.getElementById(`sub-${oid}-${idx}`);
+  if(s)s.textContent=o.items[idx].unitPrice>0?won(o.items[idx].unitPrice*q):'—';
+  save();
+}
+
 function updPrice(oid,idx,val){const o=orders.find(x=>x.id===oid);if(!o)return;const p=parsePrice(val);o.items[idx].unitPrice=p;const master=items.find(x=>x.id===o.items[idx].id);if(master&&p>0)master.unitPrice=p;save()}
 async function orderItem(oid,idx){
   const o=orders.find(x=>x.id===oid);if(!o)return;
@@ -576,11 +599,10 @@ async function orderItem(oid,idx){
   const allOrdered=o.items.every(i=>i.ordered||i.cancelled);
   if(allOrdered) o.status='발주완료';
   save();renderPending();toast(`${o.items[idx].name} 발주 완료 처리되었습니다`);
-  // 슬랙 알림
-  const itemList = o.items.filter(i=>i.ordered).map(i=>`• ${i.name} × ${i.qty}개`).join('\n');
+  // 슬랙 알림 - 해당 품목 하나만
   await sendSlackNotice({
     date: o.date,
-    items: o.items.filter(i=>i.ordered),
+    items: [o.items[idx]],
     _type: '발주완료'
   });
 }
@@ -616,8 +638,8 @@ function buildData(){
   const months=getMonths();
   const qtyMap={},costMap={};
   history.forEach(mdata=>{mdata.orders.forEach(o=>{o.items.filter(i=>i.received).forEach(item=>{
-    if(!qtyMap[item.name])qtyMap[item.name]={cat:item.cat,months:{},lastDate:''};
-    if(!costMap[item.name])costMap[item.name]={cat:item.cat,months:{},lastDate:''};
+    if(!qtyMap[item.name])qtyMap[item.name]={cat:item.cat,unit:item.unit||'',months:{},lastDate:''};
+    if(!costMap[item.name])costMap[item.name]={cat:item.cat,unit:item.unit||'',months:{},lastDate:''};
     if(!qtyMap[item.name].months[mdata.month])qtyMap[item.name].months[mdata.month]=0;
     if(!costMap[item.name].months[mdata.month])costMap[item.name].months[mdata.month]=0;
     qtyMap[item.name].months[mdata.month]+=item.qty;
@@ -671,7 +693,7 @@ function renderQtyTable(){
   const{months,qtyMap,names}=buildData();
   if(!names.length){wrap.innerHTML='<div class="empty">아직 입고 내역이 없습니다</div>';return}
   const thCols=months.map(m=>`<th style="min-width:50px">${fmk(m)}</th>`).join('');
-  const rows=names.map(name=>{const data=qtyMap[name];const cells=months.map(m=>{const v=data.months[m]||0;return`<td class="${v===0?'z':''}">${v===0?'—':v}</td>`;}).join('');const total=months.reduce((s,m)=>s+(data.months[m]||0),0);return`<tr><td class="nc">${name}<span class="tag ${data.cat==='식음료'?'tg':'tb'}" style="margin-left:4px">${data.cat}</span></td>${cells}<td style="font-weight:500;color:var(--or)">${total}</td></tr>`;}).join('');
+  const rows=names.map(name=>{const data=qtyMap[name];const unit=data.unit?` (${data.unit})`:'';const cells=months.map(m=>{const v=data.months[m]||0;return`<td class="${v===0?'z':''}">${v===0?'—':`${v}개${unit}`}</td>`;}).join('');const total=months.reduce((s,m)=>s+(data.months[m]||0),0);return`<tr><td class="nc">${name}<span class="tag ${data.cat==='식음료'?'tg':data.cat==='소모품'?'tb':'tother'}" style="margin-left:4px">${data.cat}</span></td>${cells}<td style="font-weight:500;color:var(--or)">${total}개${unit}</td></tr>`;}).join('');
   wrap.innerHTML=`<table class="htbl"><thead><tr><th class="nc">품목명</th>${thCols}<th style="min-width:44px">합계</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 function renderDetailTable(){
@@ -681,7 +703,7 @@ function renderDetailTable(){
   el.innerHTML=sorted.map(mdata=>{
     const monthIdx=history.indexOf(mdata);
     const monthTotal=mdata.orders.reduce((s,o)=>s+o.items.filter(i=>i.received).reduce((ss,i)=>ss+(i.unitPrice||0)*i.qty,0),0);
-    const sortedOrders=[...mdata.orders].sort((a,b)=>(b.receiveDate||b.date).localeCompare(a.receiveDate||a.date));
+    const sortedOrders=[...mdata.orders].sort((a,b)=>(a.receiveDate||a.date).localeCompare(b.receiveDate||b.date));
     const eid=`ebox-${monthIdx}`;
     return`<div class="detail-outer">
       <div class="detail-month-hdr">
@@ -699,23 +721,19 @@ function renderDetailTable(){
           <button class="btn bp" style="font-size:11px;padding:5px 12px;margin-top:6px" onclick="saveEdit(${monthIdx},${ri})"><i class="ti ti-check"></i> 이 발주 저장</button>
         </div>`;}).join('')}
       </div>
-      ${sortedOrders.map(o=>{
-        const ot=o.items.filter(i=>i.received).reduce((s,i)=>s+(i.unitPrice||0)*i.qty,0);
-        const rcvItems=o.items.filter(i=>i.received);
-        return`<div class="detail-order-block">
-          <div class="detail-order-hdr">
-            <span class="detail-order-date"><i class="ti ti-truck-delivery" style="font-size:12px;margin-right:4px;color:var(--sky)"></i>${fdS(o.receiveDate||o.date)} 입고 <span style="color:var(--color-text-secondary);font-weight:400;font-size:11px">(발주 ${fdS(o.date)})</span></span>
-            <span class="detail-order-total">${ot>0?won(ot):'—'}</span>
-          </div>
-          <table class="detail-item-tbl">
-            <thead><tr><th>품목명</th><th>카테고리</th><th>수량</th><th>단가</th><th>소계</th></tr></thead>
-            <tbody>
-              ${rcvItems.map(item=>{const sub=(item.unitPrice||0)*item.qty;return`<tr><td style="font-weight:500">${item.name}</td><td><span class="tag ${item.cat==='식음료'?'tg':item.cat==='소모품'?'tb':'tother'}">${item.cat}</span></td><td>${item.qty}개</td><td>${item.unitPrice>0?won(item.unitPrice):'미정'}</td><td style="font-weight:500;color:var(--or)">${sub>0?won(sub):'—'}</td></tr>`;}).join('')}
-              <tr class="sub-total-row"><td colspan="4" style="text-align:right">당일 합계</td><td style="color:#7A2D08">${ot>0?won(ot):'—'}</td></tr>
-            </tbody>
-          </table>
-        </div>`;
-      }).join('')}
+      <div class="detail-order-block">
+        <table class="detail-item-tbl">
+          <thead><tr><th style="min-width:90px">날짜</th><th>품목명</th><th>수량</th><th>단가</th><th>소계</th></tr></thead>
+          <tbody>
+            ${sortedOrders.flatMap(o=>o.items.filter(i=>i.received).map(item=>{
+              const sub=(item.unitPrice||0)*item.qty;
+              const unit=item.unit?` (${item.unit})`:'';
+              return`<tr><td style="font-size:11px;color:var(--color-text-secondary)">${fdS(o.receiveDate||o.date)}</td><td style="font-weight:500">${item.name}</td><td>${item.qty}개${unit}</td><td>${item.unitPrice>0?won(item.unitPrice):'미정'}</td><td style="font-weight:500;color:var(--or)">${sub>0?won(sub):'—'}</td></tr>`;
+            })).join('')}
+            <tr class="sub-total-row"><td colspan="4" style="text-align:right;font-weight:500">${fmkF(mdata.month)} 합계</td><td style="color:#7A2D08;font-weight:500">${monthTotal>0?won(monthTotal):'—'}</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>`;
   }).join('');
 }
