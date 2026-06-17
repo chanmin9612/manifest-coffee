@@ -1158,6 +1158,7 @@ async function loadData(){
             if(row.key==='items'){ const parsed=JSON.parse(row.value); items=parsed.length>0?parsed:DEF; }
             if(row.key==='orders') orders=JSON.parse(row.value);
             if(row.key==='history') history=JSON.parse(row.value);
+            if(row.key==='staff') staff=JSON.parse(row.value);
           } catch(e){}
         });
         // localStorage도 동기화
