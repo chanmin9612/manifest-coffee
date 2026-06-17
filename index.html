@@ -343,13 +343,21 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 async function sendSlackNotice(order) {
   const itemList = order.items.map(i => `• ${i.name} × ${i.qty}개`).join('\n');
   const type = order._type;
+  // 날짜 안전하게 포맷
+  const safeDate = (s)=>{
+    if(!s)return'날짜없음';
+    const date=s.split(' ')[0];
+    const p=date.split('-');
+    if(p.length<3)return s;
+    return `${+p[0]}년 ${+p[1]}월 ${+p[2]}일`;
+  };
   let message;
   if(type === '발주완료'){
-    message = `✅ *발주 완료*\n📅 ${fd(order.date)}\n\n${itemList}`;
+    message = `✅ *발주 완료*\n📅 ${safeDate(order.date)}\n\n${itemList}`;
   } else if(type === '취소'){
-    message = `❌ *발주 취소*\n📅 ${fd(order.date)}\n\n${itemList}`;
+    message = `❌ *발주 취소*\n📅 ${safeDate(order.date)}\n\n${itemList}`;
   } else {
-    message = `🛒 *새 발주 신청*\n📅 ${fd(order.date)}\n👤 발주자: ${order.orderer||'미입력'}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
+    message = `🛒 *새 발주 신청*\n📅 ${safeDate(order.date)}\n👤 발주자: ${order.orderer||'미입력'}\n\n${itemList}\n\n총 ${order.items.length}개 품목`;
   }
   try {
     await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/functions/v1/notify-kakaowork', {
@@ -418,11 +426,20 @@ function save(){
 }
 async function sbSaveStaff(){
   const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ';
-  await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/rest/v1/app_state', {
-    method:'POST',
-    headers:{'apikey':SKEY,'Authorization':'Bearer '+SKEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
-    body:JSON.stringify([{key:'staff',value:JSON.stringify(staff)}])
+  // PATCH로 기존 staff 행 업데이트
+  const res = await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/rest/v1/app_state?key=eq.staff', {
+    method:'PATCH',
+    headers:{'apikey':SKEY,'Authorization':'Bearer '+SKEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+    body:JSON.stringify({value:JSON.stringify(staff)})
   });
+  // PATCH 실패 시 INSERT
+  if(!res.ok){
+    await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/rest/v1/app_state', {
+      method:'POST',
+      headers:{'apikey':SKEY,'Authorization':'Bearer '+SKEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify([{key:'staff',value:JSON.stringify(staff)}])
+    });
+  }
 }
 
 async function sbSave(){
@@ -601,11 +618,20 @@ function renderPending(){
           :item.ordered
           ?`<span class="bdg bgor"><i class="ti ti-truck-delivery"></i> 발주완료</span>`
           :`<span class="bdg bgsk"><i class="ti ti-clock"></i> 대기중</span>`;
-        const actionBtn=item.received||item.cancelled
+        const actionBtn=item.cancelled
           ?'—'
+          :item.received
+          ?`<button onclick="undoReceive(${o.id},${realIdx})" style="background:none;border:0.5px solid var(--ln);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--color-text-secondary)"><i class="ti ti-arrow-back-up"></i> 되돌리기</button>`
           :item.ordered
-          ?`<div style="display:flex;gap:4px;justify-content:center"><button class="rcv-btn" onclick="rcvItem(${o.id},${realIdx})"><i class="ti ti-package"></i> 입고</button><button class="cancel-item-btn" onclick="openCancelItemModal(${o.id},${realIdx})"><i class="ti ti-ban"></i></button></div>`
-          :`<div style="display:flex;gap:4px;justify-content:center"><button class="order-btn" onclick="orderItem(${o.id},${realIdx})"><i class="ti ti-check"></i> 발주완료</button><button class="cancel-item-btn" onclick="openCancelItemModal(${o.id},${realIdx})"><i class="ti ti-ban"></i></button></div>`;
+          ?`<div style="display:flex;gap:4px;justify-content:center">
+              <button class="rcv-btn" onclick="rcvItem(${o.id},${realIdx})"><i class="ti ti-package"></i> 입고</button>
+              <button onclick="undoOrder(${o.id},${realIdx})" style="background:none;border:0.5px solid var(--ln);border-radius:6px;padding:3px 6px;font-size:11px;cursor:pointer;color:var(--color-text-secondary)" title="발주완료 취소"><i class="ti ti-arrow-back-up"></i></button>
+              <button class="cancel-item-btn" onclick="openCancelItemModal(${o.id},${realIdx})"><i class="ti ti-ban"></i></button>
+            </div>`
+          :`<div style="display:flex;gap:4px;justify-content:center">
+              <button class="order-btn" onclick="orderItem(${o.id},${realIdx})"><i class="ti ti-check"></i> 발주완료</button>
+              <button class="cancel-item-btn" onclick="openCancelItemModal(${o.id},${realIdx})"><i class="ti ti-ban"></i></button>
+            </div>`;
         const priceCell=item.received||item.cancelled
           ?`<span style="font-size:11px;color:var(--color-text-secondary)">${item.unitPrice>0?won(item.unitPrice):'미정'}</span>`
           :`<input class="price-input" id="pr-${o.id}-${realIdx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액" onchange="updPrice(${o.id},${realIdx},this.value)">`;
@@ -653,7 +679,45 @@ function renderPending(){
   const dc=document.getElementById('done-card'),dl=document.getElementById('done-list');
   if(done.length){
     dc.style.display='block';
-    dl.innerHTML=done.map(o=>`<div class="irow"><div class="ii"><div class="in">${fd(o.date)} 발주${o.orderer?` · <span style="color:var(--sky);font-size:12px">${o.orderer}</span>`:''}</div><div class="ip">총 ${o.items.length}개 품목 · 입고 ${o.items.filter(i=>i.received).length}개</div></div><span class="bdg bgok"><i class="ti ti-circle-check"></i> 완료</span></div>`).join('');
+    dl.innerHTML=done.map(o=>{
+    const rcvItems=o.items.filter(i=>i.received);
+    const total=rcvItems.reduce((s,i)=>s+(i.unitPrice||0)*i.qty,0);
+    const detailRows=rcvItems.map(item=>{
+      const unit=item.unit?` (${item.unit})`:'';
+      const sub=(item.unitPrice||0)*item.qty;
+      return`<tr>
+        <td style="font-weight:500;text-align:left">${item.name}</td>
+        <td style="text-align:center">${item.qty}개${unit}</td>
+        <td style="text-align:center">${item.unitPrice>0?won(item.unitPrice):'미정'}</td>
+        <td style="text-align:right;color:var(--or);font-weight:500">${sub>0?won(sub):'—'}</td>
+      </tr>`;
+    }).join('');
+    return`<div style="border:0.5px solid var(--ln);border-radius:10px;overflow:hidden;margin-bottom:6px">
+      <div class="irow" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;border-radius:0;border:none;margin:0">
+        <div class="ii">
+          <div class="in">${fd(o.date)} 발주${o.orderer?` · <span style="color:var(--sky);font-size:12px">${o.orderer}</span>`:''}</div>
+          <div class="ip">총 ${o.items.length}개 품목 · 입고 ${rcvItems.length}개${total>0?` · ${won(total)}`:''}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="bdg bgok"><i class="ti ti-circle-check"></i> 완료</span>
+          <i class="ti ti-chevron-down" style="font-size:12px;color:var(--color-text-secondary)"></i>
+        </div>
+      </div>
+      <div style="display:none;padding:10px 12px;background:var(--sl);border-top:0.5px solid var(--ln)">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr>
+            <th style="text-align:left;padding:5px 6px;background:#3AAEE0;color:#fff;border-radius:4px 0 0 0">품목명</th>
+            <th style="text-align:center;padding:5px 6px;background:#3AAEE0;color:#fff">수량</th>
+            <th style="text-align:center;padding:5px 6px;background:#3AAEE0;color:#fff">단가</th>
+            <th style="text-align:right;padding:5px 6px;background:#3AAEE0;color:#fff;border-radius:0 4px 0 0">소계</th>
+          </tr></thead>
+          <tbody>${detailRows}</tbody>
+          ${total>0?`<tfoot><tr><td colspan="3" style="text-align:right;padding:5px 6px;font-weight:500;font-size:11px">합계</td><td style="text-align:right;padding:5px 6px;font-weight:500;color:#7A2D08">${won(total)}</td></tr></tfoot>`:''}
+        </table>
+      </div>
+    </div>`;
+  }).join('');
   } else dc.style.display='none';
   const cc=document.getElementById('cancelled-card');
   cc.style.display='none';
@@ -672,6 +736,37 @@ function updQty(oid,idx,val){
 }
 
 function updPrice(oid,idx,val){const o=orders.find(x=>x.id===oid);if(!o)return;const p=parsePrice(val);o.items[idx].unitPrice=p;const master=items.find(x=>x.id===o.items[idx].id);if(master&&p>0)master.unitPrice=p;save()}
+function undoOrder(oid,idx){
+  const o=orders.find(x=>x.id===oid);if(!o)return;
+  o.items[idx].ordered=false;
+  o.status='발주중';
+  save();renderPending();toast(`${o.items[idx].name} 발주완료가 취소되었습니다`);
+}
+
+function undoReceive(oid,idx){
+  if(!confirm('입고 처리를 되돌리시겠습니까?\n해당 품목이 발주완료 상태로 돌아갑니다.'))return;
+  const o=orders.find(x=>x.id===oid);if(!o)return;
+  o.items[idx].received=false;
+  o.items[idx].receiveDate=null;
+  o.items[idx].ordered=true;
+  // 완료 처리된 발주였으면 orders로 복구
+  if(o.status==='입고완료'||o.status==='부분완료'||o.status==='발주완료'){
+    o.status='발주완료';
+    // history에서 제거
+    history.forEach((mdata,mi)=>{
+      mdata.orders.forEach((ho,oi)=>{
+        if(ho.id===oid){
+          mdata.orders.splice(oi,1);
+          if(mdata.orders.length===0) history.splice(mi,1);
+        }
+      });
+    });
+    // orders에 없으면 추가
+    if(!orders.find(x=>x.id===oid)) orders.push(o);
+  }
+  save();renderPending();toast(`${o.items[idx].name} 입고가 취소되었습니다`);
+}
+
 async function orderItem(oid,idx){
   const o=orders.find(x=>x.id===oid);if(!o)return;
   o.items[idx].ordered=true;
@@ -785,6 +880,60 @@ function renderDetailTable(){
     const monthTotal=mdata.orders.reduce((s,o)=>s+o.items.filter(i=>i.received).reduce((ss,i)=>ss+(i.unitPrice||0)*i.qty,0),0);
     const sortedOrders=[...mdata.orders].sort((a,b)=>(a.receiveDate||a.date).localeCompare(b.receiveDate||b.date));
     const eid=`ebox-${monthIdx}`;
+
+    // 날짜별로 그룹핑
+    const dateGroups={};
+    sortedOrders.forEach(o=>{
+      const dateKey=fdDate(o.receiveDate||o.date)||'날짜없음';
+      if(!dateGroups[dateKey]) dateGroups[dateKey]=[];
+      dateGroups[dateKey].push(o);
+    });
+
+    // 날짜 오름차순 정렬
+    const dateKeys=Object.keys(dateGroups).sort((a,b)=>{
+      const oa=dateGroups[a][0];const ob=dateGroups[b][0];
+      return (oa.receiveDate||oa.date).localeCompare(ob.receiveDate||ob.date);
+    });
+
+    // 날짜별 블록 렌더링
+    const dateBlocks=dateKeys.map(dateKey=>{
+      const dayOrders=dateGroups[dateKey];
+      const dayItems=dayOrders.flatMap(o=>o.items.filter(i=>i.received).map(i=>({...i,orderId:o.id})));
+      const dayTotal=dayItems.reduce((s,i)=>s+(i.unitPrice||0)*i.qty,0);
+      const rows=dayItems.map(item=>{
+        const sub=(item.unitPrice||0)*item.qty;
+        const unit=item.unit?` (${item.unit})`:'';
+        return`<tr>
+          <td style="font-weight:500">${item.name}</td>
+          <td><span class="tag ${item.cat==='식음료'?'tg':item.cat==='소모품'?'tb':'tother'}">${item.cat}</span></td>
+          <td style="text-align:center">${item.qty}개${unit}</td>
+          <td style="text-align:center">${item.unitPrice>0?won(item.unitPrice):'미정'}</td>
+          <td style="text-align:right;font-weight:500;color:var(--or)">${sub>0?won(sub):'—'}</td>
+        </tr>`;
+      }).join('');
+      return`<div class="detail-order-block" style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--skyl);border-radius:8px 8px 0 0;border:0.5px solid var(--skym)">
+          <span style="font-size:13px;font-weight:500;color:var(--sky2)"><i class="ti ti-truck-delivery" style="margin-right:5px"></i>${dateKey} 입고</span>
+          <span style="font-size:13px;font-weight:500;color:var(--or)">${dayTotal>0?won(dayTotal):'—'}</span>
+        </div>
+        <table class="detail-item-tbl" style="border-radius:0 0 8px 8px;overflow:hidden">
+          <thead><tr><th style="text-align:left">품목명</th><th>카테고리</th><th>수량</th><th>단가</th><th style="text-align:right">소계</th></tr></thead>
+          <tbody>
+            ${rows}
+            <tr class="sub-total-row"><td colspan="4" style="text-align:right">당일 합계</td><td style="text-align:right;color:#7A2D08">${dayTotal>0?won(dayTotal):'—'}</td></tr>
+          </tbody>
+        </table>
+      </div>`;
+    }).join('');
+
+    // 수정 박스
+    const editBox=sortedOrders.map(o=>{const ri=mdata.orders.indexOf(o);return`<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--color-text-secondary);font-weight:500;margin-bottom:5px">${fdS(o.receiveDate||o.date)} 입고</div>
+      <table class="ie-tbl"><thead><tr><th>품목명</th><th style="width:65px">수량</th><th style="width:85px">단가(원)</th><th style="width:36px"></th></tr></thead><tbody>
+        ${o.items.filter(i=>i.received).map((item,iidx)=>`<tr><td style="font-weight:500">${item.name}</td><td style="text-align:center"><input class="ie-input" id="ieq-${monthIdx}-${ri}-${iidx}" value="${item.qty}" type="number" min="1"></td><td style="text-align:center"><input class="ie-input" id="iep-${monthIdx}-${ri}-${iidx}" value="${item.unitPrice||''}" placeholder="미정"></td><td style="text-align:center"><button onclick="deleteReceivedItem(${monthIdx},${ri},${iidx})" style="background:none;border:none;cursor:pointer;color:var(--rd);font-size:14px;" title="삭제"><i class="ti ti-trash"></i></button></td></tr>`).join('')}
+      </tbody></table>
+      <button class="btn bp" style="font-size:11px;padding:5px 12px;margin-top:6px" onclick="saveEdit(${monthIdx},${ri})"><i class="ti ti-check"></i> 이 발주 저장</button>
+    </div>`;}).join('');
+
     return`<div class="detail-outer">
       <div class="detail-month-hdr">
         <span class="detail-month-title">${fmkF(mdata.month)}</span>
@@ -794,32 +943,13 @@ function renderDetailTable(){
       ${monthTotal>0?`<div class="month-total-banner"><div><div class="month-total-label">${fmkF(mdata.month)} 총 소비금액</div><div class="month-total-sub">${mdata.orders.length}건 발주 합산</div></div><div class="month-total-amount">${won(monthTotal)}</div></div>`:''}
       <div class="inline-edit-box" id="${eid}">
         <div style="font-size:11px;color:#0C447C;font-weight:500;margin-bottom:8px"><i class="ti ti-info-circle"></i> 수량·단가 수정 후 저장하세요</div>
-        ${sortedOrders.map(o=>{const ri=mdata.orders.indexOf(o);return`<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--color-text-secondary);font-weight:500;margin-bottom:5px">${fdS(o.receiveDate||o.date)} 입고</div>
-          <table class="ie-tbl"><thead><tr><th>품목명</th><th style="width:65px">수량</th><th style="width:85px">단가(원)</th><th style="width:36px"></th></tr></thead><tbody>
-            ${o.items.filter(i=>i.received).map((item,iidx)=>`<tr><td style="font-weight:500">${item.name}</td><td style="text-align:center"><input class="ie-input" id="ieq-${monthIdx}-${ri}-${iidx}" value="${item.qty}" type="number" min="1"></td><td style="text-align:center"><input class="ie-input" id="iep-${monthIdx}-${ri}-${iidx}" value="${item.unitPrice||''}" placeholder="미정"></td><td style="text-align:center"><button onclick="deleteReceivedItem(${monthIdx},${ri},${iidx})" style="background:none;border:none;cursor:pointer;color:var(--rd);font-size:14px;" title="삭제"><i class="ti ti-trash"></i></button></td></tr>`).join('')}
-          </tbody></table>
-          <button class="btn bp" style="font-size:11px;padding:5px 12px;margin-top:6px" onclick="saveEdit(${monthIdx},${ri})"><i class="ti ti-check"></i> 이 발주 저장</button>
-        </div>`;}).join('')}
+        ${editBox}
       </div>
-      <div class="detail-order-block">
-        <table class="detail-item-tbl">
-          <thead><tr><th style="min-width:90px">날짜</th><th>품목명</th><th>수량</th><th>단가</th><th>소계</th></tr></thead>
-          <tbody>
-            ${sortedOrders.flatMap(o=>o.items.filter(i=>i.received).map(item=>{
-              const sub=(item.unitPrice||0)*item.qty;
-              const unit=item.unit?` (${item.unit})`:'';
-              return`<tr><td style="white-space:nowrap;text-align:center;padding:6px 8px">
-                <span style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${fdDate(o.receiveDate||o.date)}</span>
-                <span style="font-size:11px;color:var(--color-text-secondary);margin-left:4px">${fdTime(o.receiveDate||o.date)}</span>
-              </td><td style="font-weight:500">${item.name}</td><td>${item.qty}개${unit}</td><td>${item.unitPrice>0?won(item.unitPrice):'미정'}</td><td style="font-weight:500;color:var(--or)">${sub>0?won(sub):'—'}</td></tr>`;
-            })).join('')}
-            <tr class="sub-total-row"><td colspan="4" style="text-align:right;font-weight:500">${fmkF(mdata.month)} 합계</td><td style="color:#7A2D08;font-weight:500">${monthTotal>0?won(monthTotal):'—'}</td></tr>
-          </tbody>
-        </table>
-      </div>
+      ${dateBlocks}
     </div>`;
   }).join('');
 }
+
 function renderItemCostTable(){
   const wrap=document.getElementById('cost-tbl-wrap');
   if(!history.length){wrap.innerHTML='<div class="empty">아직 입고 내역이 없습니다</div>';return}
