@@ -1169,7 +1169,7 @@ async function loadData(){
     if(lh) history=JSON.parse(lh);
   } finally {
     showLoading(false);
-    renderList();renderPending();updateBadge();
+    renderList();renderPending();renderStaffList();updateBadge();
   }
 }
 
