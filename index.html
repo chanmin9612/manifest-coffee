@@ -1043,21 +1043,25 @@ function saveEditItem(){
   toast(`'${name}' 수정되었습니다`);
 }
 function renderStaffList(){
-  const el=document.getElementById('staff-list');
-  if(!el)return;
-  if(!staff.length){el.innerHTML='<div style="font-size:12px;color:#aaa;text-align:center;padding:8px">등록된 직원이 없습니다</div>';return;}
-  el.innerHTML=staff.map((name,i)=>`
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--sl);border-radius:8px;border:0.5px solid var(--ln)">
-      <span style="font-size:13px;font-weight:500"><i class="ti ti-user" style="font-size:12px;color:var(--sky);margin-right:5px"></i>${name}</span>
-      <button onclick="removeStaff(${i})" style="background:none;border:none;cursor:pointer;color:var(--rd);font-size:14px"><i class="ti ti-x"></i></button>
-    </div>`).join('');
-  // 발주자 드롭다운 업데이트
+  // 발주자 드롭다운 업데이트 (항상 실행)
   const sel=document.getElementById('orderer-name');
   if(sel){
     const cur=sel.value;
     sel.innerHTML='<option value="">직원을 선택해주세요</option>'+staff.map(n=>`<option value="${n}">${n}</option>`).join('');
     if(cur)sel.value=cur;
   }
+  // staff-list UI 업데이트
+  const el=document.getElementById('staff-list');
+  if(!el)return;
+  if(!staff.length){
+    el.innerHTML='<div style="font-size:12px;color:#aaa;text-align:center;padding:8px">등록된 직원이 없습니다</div>';
+    return;
+  }
+  el.innerHTML=staff.map((name,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--sl);border-radius:8px;border:0.5px solid var(--ln)">
+      <span style="font-size:13px;font-weight:500"><i class="ti ti-user" style="font-size:12px;color:var(--sky);margin-right:5px"></i>${name}</span>
+      <button onclick="removeStaff(${i})" style="background:none;border:none;cursor:pointer;color:var(--rd);font-size:14px"><i class="ti ti-x"></i></button>
+    </div>`).join('');
 }
 function addStaff(){
   const inp=document.getElementById('new-staff-name');
