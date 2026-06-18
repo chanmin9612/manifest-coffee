@@ -194,6 +194,8 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
       <button class="fb on" onclick="setCat(this,'all')">전체</button>
       <button class="fb" onclick="setCat(this,'식음료')">식음료</button>
       <button class="fb" onclick="setCat(this,'소모품')">소모품</button>
+      <button class="fb" onclick="setCat(this,'기타')">기타</button>
+      <button class="fb" onclick="setCat(this,'판매')">판매</button>
     </div>
     <div id="item-list"></div>
   </div>
@@ -640,7 +642,7 @@ function renderList(){
   const el=document.getElementById('item-list');
   if(!filtered.length){el.innerHTML='<div class="empty">검색 결과 없음</div>';return}
 
-  const groups=['식음료','소모품'];
+  const groups=[...new Set(items.map(x=>x.cat))].sort();
   let html='';
   groups.forEach(cat=>{
     const group=filtered.filter(x=>x.cat===cat);
@@ -648,7 +650,7 @@ function renderList(){
     // 이 카테고리 필터가 걸려있지 않을 때만 섹션 헤더 표시
     if(activeCat==='all'){
       html+=`<div class="cat-section-hdr">
-        <span class="tag ${cat==='식음료'?'tg':'tb'}" style="margin-left:0">${cat}</span>
+        <span class="tag ${cat==='식음료'?'tg':cat==='소모품'?'tb':cat==='판매'?'ts':'tother'}" style="margin-left:0">${cat}</span>
         <span style="color:var(--color-text-secondary);font-size:11px">${group.length}종</span>
       </div>`;
     }
@@ -966,7 +968,7 @@ function getMonths(){
 function buildData(){
   const months=getMonths();
   const qtyMap={},costMap={};
-  history.forEach(mdata=>{mdata.orders.forEach(o=>{o.items.filter(i=>i.received).forEach(item=>{
+  history.forEach(mdata=>{mdata.orders.forEach(o=>{o.items.filter(i=>i.received&&i.cat!=='판매').forEach(item=>{
     if(!qtyMap[item.name])qtyMap[item.name]={cat:item.cat,unit:item.unit||'',months:{},lastDate:''};
     if(!costMap[item.name])costMap[item.name]={cat:item.cat,unit:item.unit||'',months:{},lastDate:''};
     if(!qtyMap[item.name].months[mdata.month])qtyMap[item.name].months[mdata.month]=0;
@@ -1029,7 +1031,7 @@ function renderQtyTable(){
   const{months,qtyMap,names}=buildData();
   if(!names.length){wrap.innerHTML='<div class="empty">아직 입고 내역이 없습니다</div>';return}
   const thCols=months.map(m=>`<th style="min-width:50px">${fmk(m)}</th>`).join('');
-  const rows=names.map(name=>{const data=qtyMap[name];const unit=data.unit?` (${data.unit})`:'';const cells=months.map(m=>{const v=data.months[m]||0;return`<td class="${v===0?'z':''}">${v===0?'—':`${v}개${unit}`}</td>`;}).join('');const total=months.reduce((s,m)=>s+(data.months[m]||0),0);return`<tr><td class="nc">${name}<span class="tag ${data.cat==='식음료'?'tg':data.cat==='소모품'?'tb':'tother'}" style="margin-left:4px">${data.cat}</span></td>${cells}<td style="font-weight:500;color:var(--or)">${total}개${unit}</td></tr>`;}).join('');
+  const rows=names.map(name=>{const data=qtyMap[name];const unit=data.unit?` (${data.unit})`:'';const cells=months.map(m=>{const v=data.months[m]||0;return`<td class="${v===0?'z':''}">${v===0?'—':`${v}개${unit}`}</td>`;}).join('');const total=months.reduce((s,m)=>s+(data.months[m]||0),0);return`<tr><td class="nc">${name}<span class="tag ${data.cat==='식음료'?'tg':data.cat==='소모품'?'tb':data.cat==='판매'?'ts':'tother'}" style="margin-left:4px">${data.cat}</span></td>${cells}<td style="font-weight:500;color:var(--or)">${total}개${unit}</td></tr>`;}).join('');
   wrap.innerHTML=`<table class="htbl"><thead><tr><th class="nc">품목명</th>${thCols}<th style="min-width:44px">합계</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 function renderDetailTable(){
@@ -1122,7 +1124,7 @@ function renderItemCostTable(){
   const{months,costMap,names}=buildData();
   if(!names.length){wrap.innerHTML='<div class="empty">아직 입고 내역이 없습니다</div>';return}
   const thCols=months.map(m=>`<th style="min-width:76px">${fmk(m)}</th>`).join('');
-  const rows=names.map(name=>{const data=costMap[name];const cells=months.map(m=>{const v=data.months[m]||0;return`<td class="${v===0?'z':''}">${v===0?'—':won(v)}</td>`;}).join('');const total=months.reduce((s,m)=>s+(data.months[m]||0),0);return`<tr><td class="nc">${name}<span class="tag ${data.cat==='식음료'?'tg':'tb'}" style="margin-left:4px">${data.cat}</span></td>${cells}<td style="font-weight:500;color:var(--or)">${won(total)}</td></tr>`;}).join('');
+  const rows=names.map(name=>{const data=costMap[name];const cells=months.map(m=>{const v=data.months[m]||0;return`<td class="${v===0?'z':''}">${v===0?'—':won(v)}</td>`;}).join('');const total=months.reduce((s,m)=>s+(data.months[m]||0),0);return`<tr><td class="nc">${name}<span class="tag ${data.cat==='식음료'?'tg':data.cat==='소모품'?'tb':data.cat==='판매'?'ts':'tother'}" style="margin-left:4px">${data.cat}</span></td>${cells}<td style="font-weight:500;color:var(--or)">${won(total)}</td></tr>`;}).join('');
   const footCells=months.map(m=>{const v=names.reduce((s,n)=>s+(costMap[n].months[m]||0),0);return`<td>${v>0?won(v):'—'}</td>`;}).join('');
   const grand=names.reduce((s,n)=>s+months.reduce((ss,m)=>ss+(costMap[n].months[m]||0),0),0);
   wrap.innerHTML=`<table class="item-cost-tbl"><thead><tr><th class="nc">품목명</th>${thCols}<th style="min-width:76px">합계</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td class="nc">월 합계</td>${footCells}<td>${won(grand)}</td></tfoot></table>`;
@@ -1143,13 +1145,13 @@ function saveEdit(monthIdx,orderIdx){
 function renderAllItems(){
   document.getElementById('item-total').textContent=items.length;
   // 식음료 / 소모품 섹션으로 분리
-  const groups=['식음료','소모품'];
+  const groups=[...new Set(items.map(x=>x.cat))].sort();
   let html='';
   groups.forEach(cat=>{
     const group=items.filter(i=>i.cat===cat);
     if(!group.length)return;
     html+=`<div class="cat-section-hdr" style="margin-top:${cat==='소모품'?'8px':'0'}">
-      <span class="tag ${cat==='식음료'?'tg':'tb'}" style="margin-left:0">${cat}</span>
+      <span class="tag ${cat==='식음료'?'tg':cat==='소모품'?'tb':cat==='판매'?'ts':'tother'}" style="margin-left:0">${cat}</span>
       <span style="font-size:11px;color:var(--color-text-secondary)">${group.length}종</span>
     </div>`;
     group.forEach(it=>{
