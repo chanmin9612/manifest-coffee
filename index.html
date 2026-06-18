@@ -30,7 +30,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 .panel{display:none}.panel.on{display:block}
 .card{background:var(--color-background-primary);border:0.5px solid var(--ln);border-radius:var(--border-radius-lg);padding:16px;margin-bottom:14px}
 .st{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.mcards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.mcards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
 .mc{background:var(--sl);border-radius:var(--border-radius-md);padding:12px 14px;border:0.5px solid var(--ln)}
 .ml{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px}
 .mv{font-size:22px;font-weight:500}
@@ -270,7 +270,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
         <div><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">단위</label><input class="sinput" id="new-unit" placeholder="예: 1L, 1kg, 1000개" style="margin:0"></div>
       </div>
       <div><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">카테고리</label>
-        <select class="mo-sel" id="new-cat" style="width:100%"><option value="식음료">식음료</option><option value="소모품">소모품</option><option value="기타">기타</option></select>
+        <select class="mo-sel" id="new-cat" style="width:100%"><option value="식음료">식음료</option><option value="소모품">소모품</option><option value="기타">기타</option><option value="판매">판매</option></select>
       </div>
       <div><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">거래처</label>
         <input class="sinput" id="new-vendor" placeholder="예: 쿠팡, 코스트코, 마트" style="margin:0">
@@ -411,7 +411,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
         <div><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">단위</label><input class="sinput" id="edit-unit" style="margin:0"></div>
       </div>
       <div><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">카테고리</label>
-        <select class="mo-sel" id="edit-cat" style="width:100%"><option value="식음료">식음료</option><option value="소모품">소모품</option><option value="기타">기타</option></select>
+        <select class="mo-sel" id="edit-cat" style="width:100%"><option value="식음료">식음료</option><option value="소모품">소모품</option><option value="기타">기타</option><option value="판매">판매</option></select>
       </div>
       <div><label style="font-size:12px;color:#666;display:block;margin-bottom:3px">거래처</label>
         <input class="sinput" id="edit-vendor" placeholder="예: 쿠팡, 코스트코, 마트" style="margin:0">
@@ -1010,9 +1010,16 @@ function renderHistory(){
   const totalOrders=history.reduce((s,m)=>s+m.orders.length,0);
   const thisM=history.find(h=>h.month===mk());
   const thisCost=thisM?thisM.orders.reduce((s,o)=>s+o.items.filter(i=>i.received).reduce((ss,i)=>ss+(i.unitPrice||0)*i.qty,0),0):0;
+    // 수입/지출 계산
+  const thisIncome = thisM?thisM.orders.reduce((s,o)=>s+o.items.filter(i=>i.received&&i.cat==='판매').reduce((ss,i)=>ss+(i.unitPrice||0)*i.qty,0),0):0;
+  const thisExpense = thisM?thisM.orders.reduce((s,o)=>s+o.items.filter(i=>i.received&&i.cat!=='판매').reduce((ss,i)=>ss+(i.unitPrice||0)*i.qty,0),0):0;
+  const thisExpenseCount = thisM?thisM.orders.reduce((s,o)=>s+o.items.filter(i=>i.received&&i.cat!=='판매').length,0):0;
+  const thisIncomeCount = thisM?thisM.orders.reduce((s,o)=>s+o.items.filter(i=>i.received&&i.cat==='판매').length,0):0;
+
   document.getElementById('mcards').innerHTML=`
+    <div class="mc"><div class="ml">이번 달 지출</div><div class="mv mv-or" style="font-size:${thisExpense>0?'14px':'22px'}">${thisExpense>0?won(thisExpense):'—'}</div><div class="mu">소비 ${thisExpenseCount}건</div></div>
+    <div class="mc"><div class="ml">이번 달 수입</div><div class="mv mv-sky" style="font-size:${thisIncome>0?'14px':'22px'}">${thisIncome>0?'+'+won(thisIncome):'—'}</div><div class="mu">판매 ${thisIncomeCount}건</div></div>
     <div class="mc"><div class="ml">이번 달 발주</div><div class="mv mv-or">${thisM?thisM.orders.length:0}</div><div class="mu">건</div></div>
-    <div class="mc"><div class="ml">이번 달 소비</div><div class="mv mv-sky" style="font-size:${thisCost>0?'14px':'22px'}">${thisCost>0?won(thisCost):'—'}</div><div class="mu">합산</div></div>
     <div class="mc"><div class="ml">총 입고 발주</div><div class="mv">${totalOrders}</div><div class="mu">건</div></div>`;
   renderQtyTable();renderDetailTable();renderItemCostTable();
 }
@@ -1057,12 +1064,17 @@ function renderDetailTable(){
       const rows=dayItems.map(item=>{
         const sub=(item.unitPrice||0)*item.qty;
         const unit=item.unit?` (${item.unit})`:'';
+        const isIncome=item.cat==='판매';
+        const badge=isIncome
+          ?`<span style="background:#E6F1FB;color:#185FA5;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:500">+ 수입</span>`
+          :`<span style="background:#FAECE7;color:#993C1D;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:500">- 지출</span>`;
         return`<tr>
           <td style="font-weight:500">${item.name}</td>
-          <td><span class="tag ${item.cat==='식음료'?'tg':item.cat==='소모품'?'tb':'tother'}">${item.cat}</span></td>
+          <td><span class="tag ${item.cat==='식음료'?'tg':item.cat==='소모품'?'tb':item.cat==='판매'?'ts':'tother'}">${item.cat}</span></td>
+          <td style="text-align:center">${badge}</td>
           <td style="text-align:center">${item.qty}개${unit}</td>
           <td style="text-align:center">${item.unitPrice>0?won(item.unitPrice):'미정'}</td>
-          <td style="text-align:right;font-weight:500;color:var(--or)">${sub>0?won(sub):'—'}</td>
+          <td style="text-align:right;font-weight:500;color:${isIncome?'#185FA5':'var(--or)'}">${sub>0?(isIncome?'+':'')+won(sub):'—'}</td>
         </tr>`;
       }).join('');
       return`<div class="detail-order-block" style="margin-bottom:12px">
@@ -1071,10 +1083,10 @@ function renderDetailTable(){
           <span style="font-size:13px;font-weight:500;color:var(--or)">${dayTotal>0?won(dayTotal):'—'}</span>
         </div>
         <table class="detail-item-tbl" style="border-radius:0 0 8px 8px;overflow:hidden">
-          <thead><tr><th style="text-align:left">품목명</th><th>카테고리</th><th>수량</th><th>단가</th><th style="text-align:right">소계</th></tr></thead>
+          <thead><tr><th style="text-align:left">품목명</th><th>카테고리</th><th>구분</th><th>수량</th><th>단가</th><th style="text-align:right">소계</th></tr></thead>
           <tbody>
             ${rows}
-            <tr class="sub-total-row"><td colspan="4" style="text-align:right">당일 합계</td><td style="text-align:right;color:#7A2D08">${dayTotal>0?won(dayTotal):'—'}</td></tr>
+            <tr class="sub-total-row"><td colspan="5" style="text-align:right">당일 합계</td><td style="text-align:right;color:#7A2D08">${dayTotal>0?won(dayTotal):'—'}</td></tr>
           </tbody>
         </table>
       </div>`;
@@ -1322,7 +1334,7 @@ function generateStatement(){
       <td style="border-bottom:0.5px solid var(--ln);padding:5px 8px;text-align:center;white-space:nowrap">${fmtDate(item.receiveDate)}</td>
       <td style="border-bottom:0.5px solid var(--ln);padding:5px 8px;text-align:left;font-weight:500">${item.name}</td>
       <td style="border-bottom:0.5px solid var(--ln);padding:5px 8px;text-align:center">${item.vendor||'미등록'}</td>
-      <td style="border-bottom:0.5px solid var(--ln);padding:5px 8px;text-align:center"><span class="tag ${item.cat==='식음료'?'tg':item.cat==='소모품'?'tb':'tother'}">${item.cat}</span></td>
+      <td style="border-bottom:0.5px solid var(--ln);padding:5px 8px;text-align:center"><span class="tag ${item.cat==='식음료'?'tg':item.cat==='소모품'?'tb':item.cat==='판매'?'ts':'tother'}">${item.cat}</span></td>
       <td style="border-bottom:0.5px solid var(--ln);padding:5px 8px;text-align:center">${item.qty}개${unit_str(item)}</td>
       <td style="border-bottom:0.5px solid var(--ln);padding:5px 8px;text-align:center">${item.unitPrice>0?won(item.unitPrice):'미정'}</td>
       <td style="border-bottom:0.5px solid var(--ln);padding:5px 8px;text-align:center;font-weight:500;color:var(--or)">${sub>0?won(sub):'—'}</td>
