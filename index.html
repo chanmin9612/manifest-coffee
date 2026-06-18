@@ -23,7 +23,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 .hdr-title{font-size:14px;font-weight:500;color:#fff;line-height:1.2}
 .hdr-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:1px}
 .pbadge{background:var(--or);color:#fff;font-size:11px;padding:3px 10px;border-radius:20px;display:none;font-weight:500}
-.nav{display:flex;background:var(--color-background-primary);border-bottom:0.5px solid var(--ln);overflow-x:auto}
+.nav{display:flex;background:var(--color-background-primary);border-bottom:0.5px solid var(--ln);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
 .nv{padding:12px 16px;font-size:12px;color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;display:flex;align-items:center;gap:5px;flex-shrink:0}
 .nv.on{color:var(--or);border-bottom-color:var(--or);font-weight:500}
 .wrap{max-width:720px;margin:0 auto;padding:16px}
@@ -375,7 +375,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
       </div>
       <!-- 내역 테이블 -->
       <div style="font-size:12px;font-weight:500;color:#1A1A2E;margin-bottom:8px;padding-left:8px;border-left:3px solid #3AAEE0">구매 내역</div>
-      <div style="overflow-x:auto;margin-bottom:16px">
+      <div style="overflow-x:auto;margin-bottom:16px;-webkit-overflow-scrolling:touch">
         <table style="width:100%;border-collapse:collapse;font-size:11px">
           <thead>
             <tr style="background:#1A1A2E">
@@ -393,7 +393,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
       </div>
       <!-- 거래처별 합계 -->
       <div style="font-size:12px;font-weight:500;color:#1A1A2E;margin-bottom:8px;padding-left:8px;border-left:3px solid #3AAEE0">거래처별 합계</div>
-      <div style="overflow-x:auto;margin-bottom:16px">
+      <div style="overflow-x:auto;margin-bottom:16px;-webkit-overflow-scrolling:touch">
         <table style="width:100%;border-collapse:collapse;font-size:11px">
           <thead>
             <tr style="background:#3AAEE0">
@@ -807,8 +807,8 @@ function renderPending(){
               <button class="cancel-item-btn" onclick="openCancelItemModal(${o.id},${realIdx})"><i class="ti ti-ban"></i></button>
             </div>`;
         const priceCell=item.received||item.cancelled
-          ?`<span style="font-size:11px;color:var(--color-text-secondary)">${item.unitPrice>0?won(item.unitPrice):'미정'}</span>`
-          :`<input class="price-input" id="pr-${o.id}-${realIdx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액" onchange="updPrice(${o.id},${realIdx},this.value)">`;
+          ?`<span class="hide-mobile" style="font-size:11px;color:var(--color-text-secondary)">${item.unitPrice>0?won(item.unitPrice):'미정'}</span>`
+          :`<input class="price-input hide-mobile" id="pr-${o.id}-${realIdx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액" onchange="updPrice(${o.id},${realIdx},this.value)">`;
         const qtyCell=item.received||item.cancelled
           ?`<span>${item.qty}개${unit}</span>`
           :`<input class="price-input" id="qty-${o.id}-${realIdx}" value="${item.qty}" type="number" min="1" style="width:50px;text-align:center" onchange="updQty(${o.id},${realIdx},this.value)"><span style="font-size:11px;color:var(--color-text-secondary)">${unit}</span>`;
@@ -819,15 +819,15 @@ function renderPending(){
           </td>`
           :'';
         const ordererCell=isFirst
-          ?`<td rowspan="${activeItems.length}" style="font-size:12px;font-weight:500;color:var(--sky);text-align:center;vertical-align:middle">${o.orderer||'—'}</td>`
+          ?`<td rowspan="${activeItems.length}" class="hide-mobile" style="font-size:12px;font-weight:500;color:var(--sky);text-align:center;vertical-align:middle">${o.orderer||'—'}</td>`
           :'';
         rows+=`<tr class="${item.received?'done-row':item.cancelled?'cancelled-row':''}" id="itr-${o.id}-${realIdx}">
           ${dateCell}
           <td style="font-weight:500;text-align:left">${item.name}</td>
-          <td style="text-align:center">${item.received||item.cancelled?`<span style="font-size:11px;color:var(--color-text-secondary)">${item.vendor||'—'}</span>`:`<input class="price-input" value="${item.vendor||''}" placeholder="거래처" style="width:70px;font-size:11px" onchange="updVendor(${o.id},${realIdx},this.value)">`}</td>
+          <td class="hide-mobile" style="text-align:center">${item.received||item.cancelled?`<span style="font-size:11px;color:var(--color-text-secondary)">${item.vendor||'—'}</span>`:`<input class="price-input" value="${item.vendor||''}" placeholder="거래처" style="width:70px;font-size:11px" onchange="updVendor(${o.id},${realIdx},this.value)">`}</td>
           <td style="text-align:center">${qtyCell}</td>
-          <td style="text-align:center">${priceCell}</td>
-          <td id="sub-${o.id}-${realIdx}" style="text-align:center;font-size:12px;color:var(--or)">${item.unitPrice>0?won(item.unitPrice*item.qty):'—'}</td>
+          <td class="hide-mobile" style="text-align:center">${priceCell}</td>
+          <td id="sub-${o.id}-${realIdx}" class="hide-mobile" style="text-align:center;font-size:12px;color:var(--or)">${item.unitPrice>0?won(item.unitPrice*item.qty):'—'}</td>
           <td style="text-align:center">${statusBadge}</td>
           <td style="text-align:center">${actionBtn}</td>
           ${ordererCell}
@@ -837,15 +837,15 @@ function renderPending(){
     el.innerHTML=`<div style="overflow-x:auto">
       <table class="item-tbl" style="width:100%;font-size:12px">
         <thead><tr>
-          <th style="min-width:70px">날짜</th>
-          <th style="text-align:left;min-width:90px">품목명</th>
-          <th style="min-width:70px">거래처</th>
-          <th style="min-width:80px">수량</th>
-          <th style="min-width:70px">단가</th>
-          <th style="min-width:60px">소계</th>
-          <th style="min-width:70px">상태</th>
-          <th style="min-width:100px">처리</th>
-          <th style="min-width:60px">발주자</th>
+          <th style="width:70px">날짜</th>
+          <th style="text-align:left">품목명</th>
+          <th style="width:60px" class="hide-mobile">거래처</th>
+          <th style="width:70px">수량</th>
+          <th style="width:65px" class="hide-mobile">단가</th>
+          <th style="width:60px" class="hide-mobile">소계</th>
+          <th style="width:65px">상태</th>
+          <th style="width:90px">처리</th>
+          <th style="width:55px" class="hide-mobile">발주자</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table></div>`;
