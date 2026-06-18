@@ -407,7 +407,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
       </div>
       <!-- 버튼 + 서명란 -->
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:24px;padding-top:16px;border-top:0.5px solid #E8ECF0;clear:both">
-        <div style="display:flex;gap:8px">
+        <div class="btn-print-hide" style="display:flex;gap:8px">
           <button class="btn bs" onclick="window.print()"><i class="ti ti-printer"></i> 인쇄</button>
           <button class="btn bp" onclick="downloadStatementPDF()"><i class="ti ti-file-type-pdf"></i> PDF 저장</button>
         </div>
@@ -1411,7 +1411,14 @@ function downloadStatementPDF(){
       table{width:100%;border-collapse:collapse}
       th{background:#3AAEE0;color:#fff;padding:6px 8px}
       td{padding:5px 8px;border-bottom:0.5px solid #E8ECF0}
-      @media print{body{padding:0}}
+      @media print{
+  body{padding:0}
+  .hdr,.nav,.btn-print-hide{display:none!important}
+  #panel-order,#panel-pending,#panel-history,#panel-items,#panel-staff{display:none!important}
+  #panel-statement{display:block!important}
+  #statement-doc{display:block!important}
+  #stmt-content{border:none!important;box-shadow:none!important}
+}
     </style></head><body>${content}
     <script>window.onload=()=>{window.print();window.close();}<\/script>
   </body></html>`);
