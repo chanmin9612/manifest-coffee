@@ -1149,10 +1149,87 @@ function renderHistory(){
     <div class="mc"><div class="ml">총 입고 발주</div><div class="mv">${totalOrders}</div><div class="mu">건</div></div>`;
   renderQtyTable();renderDetailTable();renderItemCostTable();
 }
+function renderDetailMobile(el){
+  const sorted=[...history].sort((a,b)=>b.month.localeCompare(a.month));
+  el.innerHTML=sorted.map(mdata=>{
+    const monthTotal=mdata.orders.reduce((s,o)=>s+o.items.filter(i=>i.received&&i.cat!=='판매').reduce((ss,i)=>ss+(i.unitPrice||0)*i.qty,0),0);
+
+    // 날짜별 그룹핑
+    const dateGroups={};
+    mdata.orders.forEach(o=>{
+      const dk=fdDate(o.receiveDate||o.date)||'날짜없음';
+      if(!dateGroups[dk]) dateGroups[dk]={items:[],date:o.receiveDate||o.date};
+      o.items.filter(i=>i.received).forEach(item=>dateGroups[dk].items.push(item));
+    });
+
+    const dateKeys=Object.keys(dateGroups).sort((a,b)=>dateGroups[a].date.localeCompare(dateGroups[b].date));
+
+    const dateBlocks=dateKeys.map((dk,di)=>{
+      const group=dateGroups[dk];
+      const dayTotal=group.items.reduce((s,i)=>s+(i.unitPrice||0)*i.qty,0);
+      const itemRows=group.items.map(item=>{
+        const sub=(item.unitPrice||0)*item.qty;
+        const unit=item.unit?` (${item.unit})`:'';
+        return`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-top:0.5px solid var(--ln)">
+          <div>
+            <div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${item.name} <span class="tag ${item.cat==='식음료'?'tg':item.cat==='소모품'?'tb':item.cat==='판매'?'ts':'tother'}">${item.cat}</span></div>
+            <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${item.qty}개${unit} · ${item.unitPrice>0?won(item.unitPrice):'미정'}</div>
+          </div>
+          <span style="font-size:13px;font-weight:500;color:var(--or);white-space:nowrap;margin-left:8px">${sub>0?won(sub):'—'}</span>
+        </div>`;
+      }).join('');
+
+      const uid=`mob-${mdata.month}-${di}`;
+      return`<div style="border-bottom:0.5px solid var(--ln)">
+        <div onclick="toggleMobDetail('${uid}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:pointer;background:var(--sl)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <i class="ti ti-truck-delivery" style="color:var(--sky);font-size:14px"></i>
+            <span style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${dk}</span>
+            <span style="font-size:11px;color:var(--color-text-secondary)">${group.items.length}개 품목</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:13px;font-weight:500;color:var(--or)">${dayTotal>0?won(dayTotal):'—'}</span>
+            <i class="ti ti-chevron-down" id="chev-${uid}" style="font-size:12px;color:var(--color-text-secondary);transition:transform .2s"></i>
+          </div>
+        </div>
+        <div id="${uid}" style="display:none">
+          ${itemRows}
+          <div style="padding:8px 14px;background:var(--sl);display:flex;justify-content:space-between;border-top:0.5px solid var(--ln)">
+            <span style="font-size:11px;color:#993C1D;font-weight:500">${dk} 소계</span>
+            <span style="font-size:12px;font-weight:500;color:var(--or)">${won(dayTotal)}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    return`<div style="background:var(--color-background-primary);border:0.5px solid var(--ln);border-radius:12px;margin-bottom:14px;overflow:hidden">
+      <div style="background:#3AAEE0;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:14px;font-weight:500;color:#fff">${fmkF(mdata.month)}</span>
+        <span style="font-size:14px;font-weight:500;color:#fff">${monthTotal>0?won(monthTotal):'—'}</span>
+      </div>
+      ${dateBlocks}
+      <div style="padding:10px 14px;background:var(--sl);display:flex;justify-content:space-between;border-top:1px solid var(--ln)">
+        <span style="font-size:12px;font-weight:500;color:var(--color-text-secondary)">${fmkF(mdata.month)} 합계</span>
+        <span style="font-size:13px;font-weight:500;color:var(--or)">${monthTotal>0?won(monthTotal):'—'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleMobDetail(uid){
+  const el=document.getElementById(uid);
+  const chev=document.getElementById('chev-'+uid);
+  if(!el)return;
+  const isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'block';
+  if(chev) chev.style.transform=isOpen?'':'rotate(180deg)';
+}
+
 function renderDetailTable(){
   const el=document.getElementById('hist-detail');
   if(!el)return;
   if(!history.length){el.innerHTML='<div class="empty">아직 입고 내역이 없습니다</div>';return}
+  if(window.innerWidth<=768){renderDetailMobile(el);return;}
   const sorted=[...history].sort((a,b)=>b.month.localeCompare(a.month));
   el.innerHTML=sorted.map(mdata=>{
     const monthIdx=history.indexOf(mdata);
