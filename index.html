@@ -408,7 +408,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
       <!-- 버튼 + 서명란 -->
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:24px;padding-top:16px;border-top:0.5px solid #E8ECF0;clear:both">
         <div class="btn-print-hide" style="display:flex;gap:8px">
-          <button class="btn bs" onclick="window.print()"><i class="ti ti-printer"></i> 인쇄</button>
+          <button class="btn bs" onclick="printStatement()"><i class="ti ti-printer"></i> 인쇄</button>
           <button class="btn bp" onclick="downloadStatementPDF()"><i class="ti ti-file-type-pdf"></i> PDF 저장</button>
         </div>
         <div>
@@ -1401,29 +1401,59 @@ function generateStatement(){
   document.getElementById('statement-doc').scrollIntoView({behavior:'smooth'});
 }
 
-function downloadStatementPDF(){
-  const content = document.getElementById('stmt-content').innerHTML;
-  const win = window.open('','_blank');
+function printStatement(){
+  // 내역서 내용만 새창에서 인쇄
+  const stmtEl = document.getElementById('stmt-content');
+  const stmtHtml = stmtEl.innerHTML;
+  const win = window.open('','_blank','width=900,height=700');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     <style>
-      *{box-sizing:border-box;margin:0;padding:0;font-family:'Malgun Gothic',sans-serif;font-size:11px}
-      body{padding:20px}
+      *{box-sizing:border-box;margin:0;padding:0;font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif}
+      body{padding:24px;background:#fff}
       table{width:100%;border-collapse:collapse}
-      th{background:#3AAEE0;color:#fff;padding:6px 8px}
-      td{padding:5px 8px;border-bottom:0.5px solid #E8ECF0}
-      @media print{
-  body{padding:0}
-  .hdr,.nav,.btn-print-hide{display:none!important}
-  #panel-order,#panel-pending,#panel-history,#panel-items,#panel-staff{display:none!important}
-  #panel-statement{display:block!important}
-  #statement-doc{display:block!important}
-  #stmt-content{border:none!important;box-shadow:none!important}
-}
-    </style></head><body>${content}
-    <script>window.onload=()=>{window.print();window.close();}<\/script>
+      th{padding:7px 8px;font-weight:500}
+      td{padding:6px 8px;border-bottom:0.5px solid #F0F0F0}
+      input{border:none;border-bottom:1px solid #333;background:transparent;font-size:13px}
+      .btn-print-hide{display:none!important}
+      .tag{font-size:10px;padding:2px 6px;border-radius:3px;font-weight:500}
+      .tg{background:#E8F3FB;color:#185FA5}
+      .tb{background:#EEF2FF;color:#4338CA}
+      .tother{background:#F3F4F6;color:#6B7280}
+      .btn{display:none!important}
+      @media print{body{padding:12px}.btn-print-hide{display:none!important}}
+    </style></head><body>${stmtHtml}
+    <script>window.onload=()=>{window.print();};<\/script>
   </body></html>`);
   win.document.close();
 }
+
+function downloadStatementPDF(){
+  const btnWrap = document.querySelector('.btn-print-hide');
+  if(btnWrap) btnWrap.style.display='none';
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+  script.onload = () => {
+    const el = document.getElementById('stmt-content');
+    const today = new Date();
+    const fname = `발주내역서_${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}.pdf`;
+    html2pdf().set({
+      margin:[10,10,10,10],
+      filename:fname,
+      image:{type:'jpeg',quality:0.98},
+      html2canvas:{scale:2,useCORS:true},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+    }).from(el).save().then(()=>{
+      if(btnWrap) btnWrap.style.display='flex';
+    });
+  };
+  script.onerror = () => {
+    if(btnWrap) btnWrap.style.display='flex';
+    toast('PDF 저장 실패. 인쇄로 시도해주세요.');
+  };
+  document.head.appendChild(script);
+}
+
 
 function renderStaffList(){
   // 발주자 드롭다운 업데이트 (항상 실행)
