@@ -1037,7 +1037,7 @@ function deleteReceivedItem(monthIdx, orderIdx, itemIdx) {
 function renderHistory(){
   const totalOrders=history.reduce((s,m)=>s+m.orders.length,0);
   const thisM=history.find(h=>h.month===mk());
-  const thisCost=thisM?thisM.orders.reduce((s,o)=>s+o.items.filter(i=>i.received).reduce((ss,i)=>ss+(i.unitPrice||0)*i.qty,0),0):0;
+  const thisCost=thisM?thisM.orders.reduce((s,o)=>s+o.items.filter(i=>i.received&&i.cat!=='판매').reduce((ss,i)=>ss+(i.unitPrice||0)*i.qty,0),0):0;
     // 수입/지출 계산
   const thisIncome = thisM?thisM.orders.reduce((s,o)=>s+o.items.filter(i=>i.received&&i.cat==='판매').reduce((ss,i)=>ss+(i.unitPrice||0)*i.qty,0),0):0;
   const thisExpense = thisM?thisM.orders.reduce((s,o)=>s+o.items.filter(i=>i.received&&i.cat!=='판매').reduce((ss,i)=>ss+(i.unitPrice||0)*i.qty,0),0):0;
@@ -1066,7 +1066,7 @@ function renderDetailTable(){
   const sorted=[...history].sort((a,b)=>b.month.localeCompare(a.month));
   el.innerHTML=sorted.map(mdata=>{
     const monthIdx=history.indexOf(mdata);
-    const monthTotal=mdata.orders.reduce((s,o)=>s+o.items.filter(i=>i.received).reduce((ss,i)=>ss+(i.unitPrice||0)*i.qty,0),0);
+    const monthTotal=mdata.orders.reduce((s,o)=>s+o.items.filter(i=>i.received&&i.cat!=='판매').reduce((ss,i)=>ss+(i.unitPrice||0)*i.qty,0),0);
     const sortedOrders=[...mdata.orders].sort((a,b)=>(a.receiveDate||a.date).localeCompare(b.receiveDate||b.date));
     const eid=`ebox-${monthIdx}`;
 
