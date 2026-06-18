@@ -28,7 +28,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 .nv.on{color:var(--or);border-bottom-color:var(--or);font-weight:500}
 .wrap{max-width:720px;margin:0 auto;padding:16px}
 .panel{display:none}.panel.on{display:block}
-.card{background:var(--color-background-primary);border:0.5px solid var(--ln);border-radius:var(--border-radius-lg);padding:16px;margin-bottom:14px}
+.card{background:var(--color-background-primary);border:0.5px solid var(--ln);border-radius:var(--border-radius-lg);padding:16px;margin-bottom:12px}
 .st{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .mcards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
 .mc{background:var(--sl);border-radius:var(--border-radius-md);padding:12px 14px;border:0.5px solid var(--ln)}
@@ -39,7 +39,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 .sinput:focus{outline:none;border-color:var(--or)}
 .frow{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 .fb{padding:5px 13px;font-size:12px;border-radius:20px;border:0.5px solid var(--ln);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer}
-.fb.on{background:var(--or);color:#fff;border-color:var(--or)}
+.fb.on{background:#E8682A;color:#fff;border-color:#E8682A}
 .irow{display:flex;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--ln);gap:10px}
 .irow:last-child{border-bottom:none}
 /* 카테고리 섹션 헤더 */
@@ -805,11 +805,8 @@ function renderPendingCards(active, el){
         :`<span class="bdg" style="background:var(--sl);color:var(--color-text-secondary)"><i class="ti ti-clock"></i> 대기중</span>`;
 
       const priceArea=isDone
-        ?`<span style="font-size:12px;color:var(--or);font-weight:500">${item.unitPrice>0?won(item.unitPrice*item.qty):'—'}</span>`
-        :`<div style="display:flex;align-items:center;gap:5px">
-            <span style="font-size:11px;color:var(--color-text-secondary)">단가</span>
-            <input class="price-input" id="pr-${o.id}-${realIdx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액 입력" onchange="updPrice(${o.id},${realIdx},this.value)" style="border:0.5px solid var(--ln);border-radius:6px;width:90px;font-size:12px;text-align:right;padding:5px 8px;outline:none;background:var(--sl);color:var(--color-text-primary)">
-          </div>`;
+        ?`<span style="font-size:13px;color:var(--or);font-weight:500">${item.unitPrice>0?won(item.unitPrice*item.qty):'—'}</span>`
+        :`<input class="price-input" id="pr-${o.id}-${realIdx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액" onchange="updPrice(${o.id},${realIdx},this.value)" style="border:0.5px solid var(--ln);border-radius:6px;width:120px;height:36px;font-size:13px;text-align:right;padding:4px 8px;outline:none;background:var(--sl);color:var(--color-text-primary)">`;
 
       const actionBtns=item.cancelled?''
         :isDone
@@ -830,15 +827,19 @@ function renderPendingCards(active, el){
           <span style="font-size:13px;font-weight:500;${isDone?'text-decoration:line-through;color:var(--color-text-secondary)':'color:var(--color-text-primary)'}">${item.name}</span>
           ${statusBadge}
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px">
           ${isDone
-          ?`<span style="font-size:12px;color:var(--color-text-secondary)">${item.qty}개${unit}</span>`
-          :`<div style="display:flex;align-items:center;gap:4px">
-              <input type="number" min="1" value="${item.qty}" onchange="updQty(${o.id},${realIdx},this.value)" style="border:0.5px solid var(--ln);border-radius:6px;width:52px;font-size:12px;text-align:center;padding:5px 4px;outline:none;background:var(--sl);color:var(--color-text-primary)">
-              <span style="font-size:11px;color:var(--color-text-secondary)">${unit}</span>
-            </div>`
-        }
-          ${priceArea}
+            ?`<span style="font-size:12px;color:var(--color-text-secondary)">${item.qty}개${unit}</span>
+              <span style="font-size:13px;font-weight:500;color:var(--or)">${item.unitPrice>0?won(item.unitPrice*item.qty):'—'}</span>`
+            :`<div style="display:flex;align-items:center;gap:6px;flex:1">
+                <input type="number" min="1" value="${item.qty}" onchange="updQty(${o.id},${realIdx},this.value)"
+                  style="width:64px;height:42px;border:0.5px solid var(--ln);border-radius:8px;font-size:15px;font-weight:500;outline:none;background:var(--sl);color:var(--color-text-primary);text-align:center;padding:4px">
+                <span style="font-size:11px;color:var(--color-text-secondary)">${unit}</span>
+              </div>
+              <input class="price-input" id="pr-${o.id}-${realIdx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="단가 입력"
+                onchange="updPrice(${o.id},${realIdx},this.value)"
+                style="flex:1;min-width:0;height:42px;border:0.5px solid var(--ln);border-radius:8px;font-size:15px;font-weight:500;outline:none;background:var(--sl);color:var(--color-text-primary);text-align:right;padding:4px 10px">`
+          }
         </div>
         ${actionBtns}
       </div>`;
@@ -872,7 +873,7 @@ function renderPending(){
   const el=document.getElementById('pend-list');
 
   if(!active.length){
-    el.innerHTML='<div class="empty">진행 중인 발주가 없습니다</div>';
+    el.innerHTML='<div class="empty"><i class="ti ti-package" style="font-size:32px;color:#ddd"></i><span>진행 중인 발주가 없습니다</span></div>';
   } else if(window.innerWidth <= 768){
     renderPendingCards(active, el);
   } else {
@@ -1228,7 +1229,7 @@ function toggleMobDetail(uid){
 function renderDetailTable(){
   const el=document.getElementById('hist-detail');
   if(!el)return;
-  if(!history.length){el.innerHTML='<div class="empty">아직 입고 내역이 없습니다</div>';return}
+  if(!history.length){el.innerHTML='<div class="empty"><i class="ti ti-chart-bar" style="font-size:32px;color:#ddd"></i><span>아직 입고 내역이 없습니다</span></div>';return}
   if(window.innerWidth<=768){renderDetailMobile(el);return;}
   const sorted=[...history].sort((a,b)=>b.month.localeCompare(a.month));
   el.innerHTML=sorted.map(mdata=>{
@@ -1329,13 +1330,13 @@ function renderItemStatsCard(){
   const wrap = document.getElementById('htbl-wrap');
   const costWrap = document.getElementById('cost-tbl-wrap');
   if(!history.length){
-    if(wrap) wrap.innerHTML='<div class="empty">아직 입고 내역이 없습니다</div>';
+    if(wrap) wrap.innerHTML='<div class="empty"><i class="ti ti-chart-bar" style="font-size:32px;color:#ddd"></i><span>아직 입고 내역이 없습니다</span></div>';
     if(costWrap) costWrap.innerHTML='';
     return;
   }
   const{months,qtyMap,costMap,names}=buildData();
   if(!names.length){
-    if(wrap) wrap.innerHTML='<div class="empty">아직 입고 내역이 없습니다</div>';
+    if(wrap) wrap.innerHTML='<div class="empty"><i class="ti ti-chart-bar" style="font-size:32px;color:#ddd"></i><span>아직 입고 내역이 없습니다</span></div>';
     if(costWrap) costWrap.innerHTML='';
     return;
   }
