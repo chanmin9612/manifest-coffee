@@ -157,15 +157,18 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 .toast-el.on{opacity:1}
 #app-root{position:relative}
 
-@media screen and (max-width:600px){
+@media screen and (max-width:768px){
   .hide-mobile{display:none!important}
-  .price-input{width:50px!important;font-size:11px!important}
-  .rcv-btn,.order-btn{padding:4px 6px!important;font-size:10px!important}
-  .cancel-item-btn{padding:3px 5px!important;font-size:10px!important}
+  .price-input{width:50px!important;font-size:12px!important}
+  .sinput{font-size:16px!important}
+  .nv{padding:10px 10px!important;font-size:11px!important;min-height:44px}
+  .btn{min-height:44px!important}
+  .rcv-btn,.order-btn,.cancel-item-btn{min-height:40px!important;padding:6px 12px!important;font-size:12px!important}
+  .fb{min-height:36px!important;padding:6px 14px!important}
+  .qb{min-height:44px!important;width:44px!important}
+  input[type="number"],input[type="text"],input[type="date"],select{min-height:40px!important;font-size:16px!important}
   .card{padding:12px!important}
   table{font-size:11px!important}
-  .sinput{font-size:14px!important}
-  .nv{padding:10px 10px!important;font-size:11px!important}
   .hdr-title{font-size:13px!important}
   .hdr-sub{font-size:10px!important}
 }
@@ -785,6 +788,84 @@ function confirmCancelItem(){
   cancelTarget={oid:null,idx:null};
 }
 
+function renderPendingCards(active, el){
+  const sorted=[...active].sort((a,b)=>a.date.localeCompare(b.date));
+  el.innerHTML=sorted.map(o=>{
+    const activeItems=o.items.filter(i=>!i.cancelled);
+    const items=activeItems.map(item=>{
+      const realIdx=o.items.indexOf(item);
+      const unit=item.unit?` (${item.unit})`:'';
+      const isDone=item.received;
+      const isOrdered=item.ordered;
+
+      const statusBadge=isDone
+        ?`<span class="bdg bgok"><i class="ti ti-check"></i> 완료</span>`
+        :isOrdered
+        ?`<span class="bdg bgor"><i class="ti ti-truck-delivery"></i> 발주완료</span>`
+        :`<span class="bdg" style="background:var(--sl);color:var(--color-text-secondary)"><i class="ti ti-clock"></i> 대기중</span>`;
+
+      const priceArea=isDone
+        ?`<span style="font-size:12px;color:var(--or);font-weight:500">${item.unitPrice>0?won(item.unitPrice*item.qty):'—'}</span>`
+        :`<div style="display:flex;align-items:center;gap:5px">
+            <span style="font-size:11px;color:var(--color-text-secondary)">단가</span>
+            <input class="price-input" id="pr-${o.id}-${realIdx}" value="${item.unitPrice>0?item.unitPrice.toLocaleString():''}" placeholder="금액 입력" onchange="updPrice(${o.id},${realIdx},this.value)" style="border:0.5px solid var(--ln);border-radius:6px;width:90px;font-size:12px;text-align:right;padding:5px 8px;outline:none;background:var(--sl);color:var(--color-text-primary)">
+          </div>`;
+
+      const actionBtns=item.cancelled?''
+        :isDone
+        ?`<div style="margin-top:8px"><button onclick="undoReceive(${o.id},${realIdx})" style="background:none;border:0.5px solid var(--ln);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;color:var(--color-text-secondary)"><i class="ti ti-arrow-back-up"></i> 되돌리기</button></div>`
+        :isOrdered
+        ?`<div style="display:flex;gap:6px;margin-top:8px">
+            <button class="rcv-btn" onclick="rcvItem(${o.id},${realIdx})" style="padding:6px 12px;font-size:11px"><i class="ti ti-package"></i> 입고</button>
+            <button onclick="undoOrder(${o.id},${realIdx})" style="background:none;border:0.5px solid var(--ln);border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;color:var(--color-text-secondary)"><i class="ti ti-arrow-back-up"></i></button>
+            <button onclick="openCancelItemModal(${o.id},${realIdx})" style="background:none;border:0.5px solid var(--rd);border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;color:var(--rd)"><i class="ti ti-ban"></i></button>
+          </div>`
+        :`<div style="display:flex;gap:6px;margin-top:8px">
+            <button class="order-btn" onclick="orderItem(${o.id},${realIdx})" style="padding:6px 12px;font-size:11px"><i class="ti ti-check"></i> 발주완료</button>
+            <button onclick="openCancelItemModal(${o.id},${realIdx})" style="background:none;border:0.5px solid var(--rd);border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;color:var(--rd)"><i class="ti ti-ban"></i></button>
+          </div>`;
+
+      return`<div style="padding:10px 14px;border-bottom:0.5px solid var(--ln);${isDone?'background:var(--sl)':''}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:13px;font-weight:500;${isDone?'text-decoration:line-through;color:var(--color-text-secondary)':'color:var(--color-text-primary)'}">${item.name}</span>
+          ${statusBadge}
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          ${isDone
+          ?`<span style="font-size:12px;color:var(--color-text-secondary)">${item.qty}개${unit}</span>`
+          :`<div style="display:flex;align-items:center;gap:4px">
+              <input type="number" min="1" value="${item.qty}" onchange="updQty(${o.id},${realIdx},this.value)" style="border:0.5px solid var(--ln);border-radius:6px;width:52px;font-size:12px;text-align:center;padding:5px 4px;outline:none;background:var(--sl);color:var(--color-text-primary)">
+              <span style="font-size:11px;color:var(--color-text-secondary)">${unit}</span>
+            </div>`
+        }
+          ${priceArea}
+        </div>
+        ${actionBtns}
+      </div>`;
+    }).join('');
+
+    const totalItems=activeItems.length;
+    const doneItems=activeItems.filter(i=>i.received).length;
+    const statusBadge=o.status==='발주완료'
+      ?`<span class="bdg bgor"><i class="ti ti-truck-delivery"></i> 배송중</span>`
+      :`<span class="bdg bgsk"><i class="ti ti-clock"></i> 대기중</span>`;
+
+    return`<div style="background:var(--color-background-primary);border:0.5px solid var(--ln);border-radius:12px;margin-bottom:10px;overflow:hidden">
+      <div style="padding:10px 14px;border-bottom:0.5px solid var(--ln);display:flex;justify-content:space-between;align-items:center;background:#3AAEE0">
+        <div>
+          <div style="font-size:14px;font-weight:500;color:#fff">${fdDate(o.date)} <span style="font-size:11px;color:rgba(255,255,255,0.8);font-weight:400">${fdTime(o.date)}</span></div>
+          ${o.orderer?`<div style="font-size:11px;color:rgba(255,255,255,0.9);margin-top:2px"><i class="ti ti-user" style="font-size:10px"></i> ${o.orderer}</div>`:''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          ${statusBadge}
+          <span style="font-size:10px;color:rgba(255,255,255,0.8)">${doneItems}/${totalItems} 완료</span>
+        </div>
+      </div>
+      ${items}
+    </div>`;
+  }).join('');
+}
+
 function renderPending(){
   const active=orders.filter(o=>o.status==='발주중'||o.status==='발주완료');
   const done=orders.filter(o=>o.status==='입고완료'||o.status==='부분완료');
@@ -792,6 +873,8 @@ function renderPending(){
 
   if(!active.length){
     el.innerHTML='<div class="empty">진행 중인 발주가 없습니다</div>';
+  } else if(window.innerWidth <= 768){
+    renderPendingCards(active, el);
   } else {
     // 날짜 오름차순 정렬
     const sorted=[...active].sort((a,b)=>a.date.localeCompare(b.date));
