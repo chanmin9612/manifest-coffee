@@ -28,7 +28,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 .nv.on{color:var(--or);border-bottom-color:var(--or);font-weight:500}
 .wrap{max-width:720px;margin:0 auto;padding:16px}
 .panel{display:none}.panel.on{display:block}
-.card{background:var(--color-background-primary);border:0.5px solid var(--ln);border-radius:var(--border-radius-lg);padding:16px;margin-bottom:12px}
+.card{background:var(--color-background-primary);border:0.5px solid var(--ln);border-radius:var(--border-radius-lg);padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
 .st{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .mcards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
 .mc{background:var(--sl);border-radius:var(--border-radius-md);padding:12px 14px;border:0.5px solid var(--ln)}
@@ -58,7 +58,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 .qnum-input:focus{outline:none;border-color:var(--or)}
 .qnum-input::-webkit-inner-spin-button,.qnum-input::-webkit-outer-spin-button{-webkit-appearance:none}
 .btn{padding:8px 16px;border-radius:var(--border-radius-md);font-size:13px;font-weight:500;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:5px}
-.bp{background:var(--or);color:#fff}.bp:hover{background:var(--or2)}
+.bp{background:var(--or);color:#fff;transition:opacity .15s}.bp:hover{opacity:0.85}.bp:active{opacity:0.7}.bp:hover{background:var(--or2)}
 .brd{background:var(--rd);color:#fff}
 .bs{background:var(--color-background-primary);color:var(--color-text-primary);border:0.5px solid var(--ln)}.bs:hover{background:var(--sl)}
 .brow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
@@ -155,7 +155,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 .confirm-modal{background:#fff;border-radius:12px;padding:24px;width:100%;max-width:340px;border:none;box-shadow:0 8px 40px rgba(0,0,0,.18)}
 .toast-el{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2796CC;color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:9999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
 .toast-el.on{opacity:1}
-#app-root{position:relative}
+#app-root{position:relative;max-width:1200px;margin:0 auto}
 
 @media screen and (max-width:768px){
   .hide-mobile{display:none!important}
@@ -183,6 +183,11 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
   </div>
   <div class="pbadge" id="pbadge"></div>
 </div>
+<div id="save-indicator" style="display:none;position:fixed;top:12px;right:16px;z-index:9998;background:rgba(0,0,0,0.75);color:#fff;padding:6px 12px;border-radius:20px;font-size:12px;display:none;align-items:center;gap:6px">
+  <span id="save-spinner" style="display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite"></span>
+  <span id="save-text">저장 중...</span>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 <div class="nav">
   <div class="nv on" id="tab-order" onclick="go('order')"><i class="ti ti-clipboard-list" aria-hidden="true"></i>발주 신청</div>
   <div class="nv" id="tab-pending" onclick="go('pending')"><i class="ti ti-package" aria-hidden="true"></i>발주 현황</div>
@@ -605,24 +610,87 @@ async function sbSaveStaff(){
 }
 
 async function sbSave(){
+  showSaving();
   const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWhmYmlocmpxcWN5amxraGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjY3MzksImV4cCI6MjA5NjU0MjczOX0.oe3nJfqnuD_CqSmG7WgETJ0320RHC_xynqyGMwVdIVQ';
-  const upserts = [
-    {key:'items', value:JSON.stringify(items)},
-    {key:'orders', value:JSON.stringify(orders)},
-    {key:'history', value:JSON.stringify(history)},
-    {key:'staff', value:JSON.stringify(staff)}
-  ];
-  await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/rest/v1/app_state', {
-    method:'POST',
-    headers:{
-      'apikey':SKEY,
-      'Authorization':'Bearer '+SKEY,
-      'Content-Type':'application/json',
-      'Prefer':'resolution=merge-duplicates'
-    },
-    body:JSON.stringify(upserts)
-  });
+  try{
+    const upserts = [
+      {key:'items', value:JSON.stringify(items)},
+      {key:'orders', value:JSON.stringify(orders)},
+      {key:'history', value:JSON.stringify(history)},
+      {key:'staff', value:JSON.stringify(staff)}
+    ];
+    const res=await fetch('https://gcyhfbihrjqqcyjlkhfs.supabase.co/rest/v1/app_state', {
+      method:'POST',
+      headers:{
+        'apikey':SKEY,
+        'Authorization':'Bearer '+SKEY,
+        'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates'
+      },
+      body:JSON.stringify(upserts)
+    });
+    if(!res.ok) throw new Error('save failed');
+    showSaved();
+  }catch(e){
+    console.warn('저장 실패:',e);
+    showSaveError();
+  }
 }
+function showNetworkError(){
+  // 기존 배너 있으면 제거
+  const existing = document.getElementById('network-error-banner');
+  if(existing) existing.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'network-error-banner';
+  banner.style.cssText = 'position:fixed;top:60px;left:0;right:0;z-index:9997;background:#DC2626;color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;font-size:13px';
+  banner.innerHTML = `
+    <span>⚠️ 네트워크 오류 — 로컬 데이터로 표시 중</span>
+    <button onclick="document.getElementById('network-error-banner').remove();loadData();"
+      style="background:rgba(255,255,255,0.2);border:0.5px solid rgba(255,255,255,0.5);color:#fff;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500">
+      🔄 재시도
+    </button>
+  `;
+  document.body.appendChild(banner);
+}
+
+function showSaving(){
+  const el=document.getElementById('save-indicator');
+  const spinner=document.getElementById('save-spinner');
+  const text=document.getElementById('save-text');
+  if(!el)return;
+  spinner.style.display='inline-block';
+  text.textContent='저장 중...';
+  el.style.background='rgba(0,0,0,0.75)';
+  el.style.display='flex';
+}
+
+function showSaved(){
+  const el=document.getElementById('save-indicator');
+  const spinner=document.getElementById('save-spinner');
+  const text=document.getElementById('save-text');
+  if(!el)return;
+  spinner.style.display='none';
+  text.textContent='✅ 저장됨';
+  el.style.background='rgba(39,150,80,0.9)';
+  el.style.display='flex';
+  setTimeout(()=>{el.style.display='none';},2000);
+}
+
+function showSaveError(){
+  const el=document.getElementById('save-indicator');
+  const spinner=document.getElementById('save-spinner');
+  const text=document.getElementById('save-text');
+  if(!el)return;
+  spinner.style.display='none';
+  text.textContent='❌ 저장 실패 — 재시도';
+  el.style.background='rgba(220,38,38,0.9)';
+  el.style.display='flex';
+  el.style.cursor='pointer';
+  el.onclick=()=>{el.style.display='none';save();};
+  setTimeout(()=>{if(el.style.display!=='none')el.style.display='none';},5000);
+}
+
 function normalizeDates(){
   // 날짜 형식이 'YYYY-MM-DD'인 경우 'YYYY-MM-DD 00:00'으로 정규화
   orders.forEach(o=>{
@@ -1924,6 +1992,7 @@ async function loadData(){
   } catch(e){
     // 오프라인 or 타임아웃 - localStorage 사용
     console.warn('Supabase 로드 실패, 로컬 사용:', e.message);
+    showNetworkError();
     const li=localStorage.getItem('mf2_items');
     const lo=localStorage.getItem('mf2_orders');
     const lh=localStorage.getItem('mf2_hist');
