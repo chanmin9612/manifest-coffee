@@ -1,32 +1,25 @@
-// 매니페스트커피 서비스 워커 - 자동 업데이트
-const CACHE_NAME = 'manifest-coffee-v' + Date.now();
+// 매니페스트커피 서비스 워커 v2
+// 버전 바꾸면 자동 업데이트 트리거
+const VERSION = 'v' + Date.now();
 
-// 설치 시 즉시 활성화
+// 설치 즉시 활성화
 self.addEventListener('install', e => {
-  self.skipWaiting();
+  e.waitUntil(self.skipWaiting());
 });
 
-// 활성화 시 이전 캐시 삭제
+// 이전 캐시 전부 삭제 후 즉시 제어
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.map(key => caches.delete(key)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
-// 네트워크 우선 - 항상 최신 버전 사용
+// 항상 네트워크에서 최신 파일 가져오기 (캐시 안 씀)
 self.addEventListener('fetch', e => {
-  if(e.request.mode === 'navigate'){
-    e.respondWith(
-      fetch(e.request).catch(() => caches.match(e.request))
-    );
-  }
-});
-
-// 강제 업데이트 메시지 수신
-self.addEventListener('message', e => {
-  if(e.data && e.data.type === 'SKIP_WAITING'){
-    self.skipWaiting();
-  }
+  e.respondWith(
+    fetch(e.request, {cache: 'no-store'})
+      .catch(() => caches.match(e.request))
+  );
 });
