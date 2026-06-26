@@ -623,13 +623,41 @@ async function sbSave(){
     body:JSON.stringify(upserts)
   });
 }
+function normalizeDates(){
+  // 날짜 형식이 'YYYY-MM-DD'인 경우 'YYYY-MM-DD 00:00'으로 정규화
+  orders.forEach(o=>{
+    if(o.date && !o.date.includes(' ')){
+      o.date = o.date + ' 00:00';
+    }
+    o.items.forEach(item=>{
+      if(item.receiveDate && !item.receiveDate.includes(' ')){
+        item.receiveDate = item.receiveDate + ' 00:00';
+      }
+    });
+  });
+  history.forEach(mdata=>{
+    mdata.orders.forEach(o=>{
+      if(o.date && !o.date.includes(' ')){
+        o.date = o.date + ' 00:00';
+      }
+      o.items.forEach(item=>{
+        if(item.receiveDate && !item.receiveDate.includes(' ')){
+          item.receiveDate = item.receiveDate + ' 00:00';
+        }
+      });
+    });
+  });
+}
+
 function td(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
 function fd(s){
   if(!s)return'';
   try{
+    // 숫자(timestamp)인 경우 Date 객체로 변환
+    if(!isNaN(+s)){const d=new Date(+s);return`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;}
     const date=s.split(' ')[0];
     const p=date.split('-');
-    if(p.length<3||isNaN(+p[1])||isNaN(+p[2]))return s;
+    if(p.length<3||isNaN(+p[1])||isNaN(+p[2]))return'날짜없음';
     return`${p[0]}년 ${+p[1]}월 ${+p[2]}일`;
   }catch(e){return s;}
 }
@@ -646,10 +674,11 @@ function fdS(s){
 function fdDate(s){
   if(!s)return'';
   try{
+    if(!isNaN(+s)){const d=new Date(+s);return`${d.getMonth()+1}/${d.getDate()}`;}
     const p=s.split(' ')[0].split('-');
-    if(p.length<3||isNaN(+p[1])||isNaN(+p[2]))return s;
+    if(p.length<3||isNaN(+p[1])||isNaN(+p[2]))return'';
     return`${+p[1]}/${+p[2]}`;
-  }catch(e){return s;}
+  }catch(e){return'';}
 }
 function fdTime(s){
   if(!s)return'';
@@ -1903,7 +1932,7 @@ async function loadData(){
     if(lh) history=JSON.parse(lh);
   } finally {
     showLoading(false);
-    renderList();renderPending();renderStaffList();updateBadge();
+    normalizeDates();renderList();renderPending();renderStaffList();updateBadge();
   }
 }
 
