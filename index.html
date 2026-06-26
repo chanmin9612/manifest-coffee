@@ -2072,27 +2072,26 @@ loadData().then(()=>startRealtime());
 </script>
 
 <script>
-// 자동 업데이트 - 새 버전 감지 시 자동 적용
+// 자동 업데이트 - 항상 최신 버전 유지
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('/manifest-coffee/sw.js').then(reg=>{
-    // 새 서비스 워커 감지
-    reg.addEventListener('updatefound',()=>{
-      const newWorker = reg.installing;
-      newWorker.addEventListener('statechange',()=>{
-        if(newWorker.state==='installed' && navigator.serviceWorker.controller){
-          // 새 버전 발견 시 자동 새로고침
-          newWorker.postMessage({type:'SKIP_WAITING'});
-        }
+  navigator.serviceWorker.register('/manifest-coffee/sw.js', {updateViaCache:'none'})
+    .then(reg=>{
+      // 즉시 업데이트 체크
+      reg.update();
+      // 새 서비스 워커 감지
+      reg.addEventListener('updatefound',()=>{
+        const nw=reg.installing;
+        nw.addEventListener('statechange',()=>{
+          if(nw.state==='installed'){
+            nw.postMessage({type:'SKIP_WAITING'});
+          }
+        });
       });
     });
-  });
-  // 서비스 워커 활성화 후 자동 새로고침
+  // 컨트롤러 변경 시 자동 새로고침
   let refreshing=false;
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    if(!refreshing){
-      refreshing=true;
-      window.location.reload();
-    }
+    if(!refreshing){refreshing=true;window.location.reload();}
   });
 }
 </script>
