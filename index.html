@@ -465,15 +465,16 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 <!-- 직원 관리 패널 -->
 <div class="panel" id="panel-staff">
   <div class="card">
-    <div class="st"><i class="ti ti-user-plus" style="color:var(--or)"></i>직원 추가</div>
-    <div style="display:flex;gap:8px">
-      <input class="sinput" id="new-staff-name" placeholder="직원 이름 입력" style="margin:0;flex:1" maxlength="10">
-      <button class="btn bp" onclick="addStaff()" style="flex-shrink:0"><i class="ti ti-plus"></i>추가</button>
+    <div class="st"><i class="ti ti-users" style="color:var(--sky)"></i>직원 관리</div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <input class="sinput" id="new-staff-name" placeholder="직원 이름 입력" style="margin:0;flex:1" maxlength="10"
+        onkeydown="if(event.key==='Enter')addStaff()">
+      <button class="btn bp" onclick="addStaff()" style="flex-shrink:0;padding:0 18px"><i class="ti ti-plus"></i>추가</button>
     </div>
-  </div>
-  <div class="card">
-    <div class="st"><i class="ti ti-users" style="color:var(--sky)"></i>등록 직원 목록</div>
-    <div id="staff-list" style="display:grid;gap:6px"></div>
+    <div style="border-top:0.5px solid var(--ln);padding-top:14px">
+      <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);margin-bottom:10px;letter-spacing:.2px">등록 직원 <span id="staff-count" style="color:var(--sky)"></span></div>
+      <div id="staff-list" style="display:grid;gap:8px"></div>
+    </div>
   </div>
 </div>
 
@@ -2094,18 +2095,26 @@ function dlStatsPDF(){
 }
 
 function renderStaffList(){
-  // staff-list UI 업데이트
   const el=document.getElementById('staff-list');
+  const countEl=document.getElementById('staff-count');
   if(!el)return;
+  if(countEl)countEl.textContent=staff.length?`${staff.length}명`:'';
   if(!staff.length){
-    el.innerHTML='<div style="font-size:12px;color:#aaa;text-align:center;padding:8px">등록된 직원이 없습니다</div>';
+    el.innerHTML='<div style="text-align:center;padding:20px;color:var(--color-text-secondary);font-size:13px"><i class="ti ti-user-off" style="font-size:28px;display:block;margin-bottom:8px;opacity:.3"></i>등록된 직원이 없습니다</div>';
     return;
   }
-  el.innerHTML=staff.map((name,i)=>`
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--sl);border-radius:8px;border:0.5px solid var(--ln)">
-      <span style="font-size:13px;font-weight:500"><i class="ti ti-user" style="font-size:12px;color:var(--sky);margin-right:5px"></i>${name}</span>
-      <button onclick="removeStaff(${i})" style="background:none;border:none;cursor:pointer;color:var(--rd);font-size:14px"><i class="ti ti-x"></i></button>
-    </div>`).join('');
+  const colors=['#3AAEE0','#E8682A','#4CAF8A','#9B6FD4','#E85D75','#F5A623'];
+  el.innerHTML=staff.map((name,i)=>{
+    const initial=name.charAt(0);
+    const color=colors[i%colors.length];
+    return`<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--sl);border-radius:10px;border:0.5px solid var(--ln)">
+      <div style="width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#fff;flex-shrink:0">${initial}</div>
+      <span style="font-size:14px;font-weight:500;flex:1">${name}</span>
+      <button onclick="removeStaff(${i})" style="background:none;border:0.5px solid var(--ln);border-radius:6px;cursor:pointer;color:var(--color-text-secondary);font-size:11px;padding:4px 8px;display:flex;align-items:center;gap:3px">
+        <i class="ti ti-trash" style="font-size:12px"></i> 삭제
+      </button>
+    </div>`;
+  }).join('');
 }
 function addStaff(){
   const inp=document.getElementById('new-staff-name');
