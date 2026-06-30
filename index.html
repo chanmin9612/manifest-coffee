@@ -70,35 +70,44 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 .bdg{font-size:11px;padding:3px 8px;border-radius:6px;font-weight:500;display:inline-flex;align-items:center;gap:3px}
 .bgor{background:var(--orl);color:#7A2D08}.bgsk{background:var(--skyl);color:#0C447C}.bgrd{background:var(--rdl);color:#7F1D1D}.bgok{background:var(--skyl);color:#0C447C}
 /* 발주 현황 카드 */
-.pend-item-tbl{width:100%;border-collapse:collapse;table-layout:fixed}
-.pend-item-tbl tr{border-bottom:0.5px solid var(--ln)}
-.pend-item-tbl tr:last-child{border-bottom:none}
-.pend-item-tbl tr.prow-done{background:var(--sl)}
-.pend-item-tbl td{vertical-align:middle;padding:9px 4px;overflow:hidden}
-.pend-item-tbl td:first-child{padding-left:14px}
-.pend-item-tbl td:last-child{padding-right:14px;text-align:right}
-.pc-dot{width:22px;padding-left:14px!important;padding-right:0!important}
-.pc-name{width:34%}
-.pc-qty{width:38px;text-align:center}
-.pc-unit{width:32px}
-.pc-price{width:82px;text-align:right}
-.pc-gap{width:auto}
-.pc-sub{width:90px;text-align:right;white-space:nowrap}
-.pc-act{width:168px}
+.pend-item-list{display:flex;flex-direction:column}
+.pend-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:0.5px solid var(--ln)}
+.pend-item:last-child{border-bottom:none}
+.pend-item.prow-done{background:var(--sl)}
+.pend-main{display:flex;align-items:center;gap:7px;flex:1 1 auto;min-width:0}
+.pend-ctrl{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.pend-op{font-size:11px;color:var(--color-text-secondary);flex:none}
+@media screen and (max-width:768px){
+  .pend-item{flex-direction:column;align-items:stretch;gap:9px;padding:11px 13px}
+  .pend-ctrl{justify-content:flex-start;width:100%}
+}
+.done-list-m{display:none}
+.dlm-item{padding:9px 2px;border-bottom:0.5px solid var(--ln)}
+.dlm-name{font-size:13px;font-weight:500;margin-bottom:3px;word-break:break-all}
+.dlm-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.dlm-meta{font-size:11.5px;color:var(--color-text-secondary)}
+.dlm-sub{font-size:13px;font-weight:500;color:var(--or);white-space:nowrap}
+.dlm-total{display:flex;justify-content:space-between;align-items:baseline;padding:9px 2px 2px}
+.dlm-total .dlm-tl{font-size:12px;color:var(--color-text-secondary)}
+.dlm-total .dlm-tv{font-size:13px;font-weight:500;color:#7A2D08}
+@media screen and (max-width:768px){
+  .done-tbl-d{display:none!important}
+  .done-list-m{display:block}
+}
 .pend-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
 .pend-dot-w{background:#CBD5E1}.pend-dot-o{background:#E8682A}.pend-dot-b{background:#3AAEE0}
 .pend-name-wrap{display:flex;align-items:center;gap:5px}
-.pend-item-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pend-item-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .pend-item-name.p-done{color:var(--color-text-secondary);text-decoration:line-through}
 .pend-qty-inp{width:34px;height:26px;border:0.5px solid var(--ln);border-radius:5px;font-size:12px;font-weight:500;text-align:center;background:var(--sl);color:var(--color-text-primary);outline:none}
 .pend-qty-inp:focus{border-color:var(--or)}
-.pend-unit-txt{font-size:11px;color:var(--color-text-secondary)}
+.pend-unit-txt{font-size:11px;color:var(--color-text-secondary);white-space:nowrap;flex:none}
 .pend-price-inp{width:78px;height:26px;border:0.5px solid var(--ln);border-radius:5px;font-size:12px;text-align:right;padding:0 6px;background:var(--sl);color:var(--color-text-primary);outline:none}
 .pend-price-inp:focus{border-color:var(--or)}
 .pend-price-txt{font-size:12px;color:var(--color-text-secondary);display:block;text-align:right}
-.pend-sub-amt{font-size:12px;font-weight:500;color:var(--or);white-space:nowrap}
+.pend-sub-amt{font-size:12px;font-weight:500;color:var(--or);white-space:nowrap;margin-left:auto;padding-left:6px;min-width:72px;text-align:right;flex:none}
 .pend-sub-amt.p-done{color:var(--color-text-secondary)}
-.pend-act-wrap{display:flex;align-items:center;gap:4px;justify-content:flex-end}
+.pend-act-wrap{display:flex;align-items:center;gap:5px;justify-content:flex-end;flex:0 0 auto}
 .pab{height:26px;padding:0 9px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;border:none}
 .pab-or{background:var(--or);color:#fff}.pab-or:hover{background:var(--or2)}
 .pab-bl{background:var(--sky);color:#fff}.pab-bl:hover{background:var(--sky2)}
@@ -1187,16 +1196,11 @@ function renderPendingCards(active, el){
             <button class="pab pab-or" onclick="orderItem(${o.id},${realIdx})"><i class="ti ti-check"></i> 발주완료</button>
             <button class="pab pab-rd" onclick="openCancelItemModal(${o.id},${realIdx})"><i class="ti ti-ban"></i></button>
           </div>`;
-      return`<tr class="${isDone?'prow-done':''}" id="itr-${o.id}-${realIdx}">
-        <td class="pc-dot"><span class="pend-dot ${dot}"></span></td>
-        <td class="pc-name"><div class="pend-name-wrap"><span class="${nameCls}">${item.name}</span>${badge}</div></td>
-        <td class="pc-qty">${qtyCell}</td>
-        <td class="pc-unit"><span class="pend-unit-txt">${unit}</span></td>
-        <td class="pc-price">${priceCell}</td>
-        <td class="pc-gap"></td>
-        <td class="pc-sub" id="sub-${o.id}-${realIdx}"><span class="${subCls}">${subAmt}</span></td>
-        <td class="pc-act">${actWrap}</td>
-      </tr>`;
+      return`<div class="pend-item ${isDone?'prow-done':''}" id="itr-${o.id}-${realIdx}">
+        <div class="pend-main"><span class="pend-dot ${dot}"></span><span class="${nameCls}">${item.name}</span>${badge}</div>
+        <div class="pend-ctrl">${qtyCell}<span class="pend-unit-txt">${unit}</span><span class="pend-op">×</span>${priceCell}<span class="${subCls}" id="sub-${o.id}-${realIdx}">${subAmt}</span></div>
+        ${actWrap}
+      </div>`;
     }).join('');
     return`<div style="border:0.5px solid var(--ln);border-radius:12px;margin-bottom:10px;overflow:hidden;background:var(--color-background-primary)">
       <div style="background:#3AAEE0;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
@@ -1209,7 +1213,7 @@ function renderPendingCards(active, el){
           ${hdrBadge}
         </div>
       </div>
-      <table class="pend-item-tbl">${rows}</table>
+      <div class="pend-item-list">${rows}</div>
     </div>`;
   }).join('');
 }
@@ -1239,6 +1243,15 @@ function renderPending(){
           <td style="text-align:right;padding:6px 8px;color:var(--or);font-weight:500">${sub>0?won(sub):'—'}</td>
         </tr>`;
       }).join('');
+      const detailListM=rcvItems.map(item=>{
+        const unit=item.unit?` (${item.unit})`:'';
+        const sub=(item.unitPrice||0)*item.qty;
+        const priceTxt=item.unitPrice>0?`단가 ${won(item.unitPrice)}`:'단가 미정';
+        return`<div class="dlm-item">
+          <div class="dlm-name">${item.name}${unit}</div>
+          <div class="dlm-row"><span class="dlm-meta">${item.qty}개 · ${priceTxt}</span><span class="dlm-sub">${sub>0?won(sub):'—'}</span></div>
+        </div>`;
+      }).join('');
       return`<div style="border:0.5px solid var(--ln);border-radius:10px;overflow:hidden;margin-bottom:6px">
         <div class="irow" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;border-radius:0;border:none;margin:0">
           <div class="ii">
@@ -1251,7 +1264,7 @@ function renderPending(){
           </div>
         </div>
         <div style="display:none;padding:10px 12px;background:var(--sl);border-top:0.5px solid var(--ln)">
-          <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
+          <table class="done-tbl-d" style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
             <thead><tr>
               <th style="text-align:left;padding:5px 8px;background:#3AAEE0;color:#fff">품목명</th>
               <th style="text-align:center;padding:5px 8px;background:#3AAEE0;color:#fff;width:80px">수량</th>
@@ -1264,6 +1277,10 @@ function renderPending(){
               <td style="text-align:right;padding:6px 8px;font-weight:500;color:#7A2D08">${won(total)}</td>
             </tr></tfoot>`:''}
           </table>
+          <div class="done-list-m">
+            ${detailListM}
+            ${total>0?`<div class="dlm-total"><span class="dlm-tl">합계</span><span class="dlm-tv">${won(total)}</span></div>`:''}
+          </div>
         </div>
       </div>`;
     }).join('');
