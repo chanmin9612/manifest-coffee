@@ -2346,5 +2346,24 @@ if('serviceWorker' in navigator){
   });
 }
 </script>
+<script>
+// 열려 있는 화면 자동 최신화: 서버의 index.html이 바뀌면 그 화면을 스스로 새로고침
+(function(){
+  let baseTag=null;
+  async function checkUpdate(){
+    try{
+      const res=await fetch(location.pathname+'?_v='+Date.now(),{method:'HEAD',cache:'no-store'});
+      if(!res.ok)return;
+      const tag=res.headers.get('etag')||res.headers.get('last-modified');
+      if(!tag)return;
+      if(baseTag===null){baseTag=tag;return;}
+      if(tag!==baseTag){location.reload();}
+    }catch(e){}
+  }
+  checkUpdate();
+  setInterval(()=>{if(document.visibilityState==='visible')checkUpdate();},60000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate();});
+})();
+</script>
 </body>
 </html>
