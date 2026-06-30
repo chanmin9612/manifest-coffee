@@ -8,6 +8,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="매니페스트커피">
 <meta name="theme-color" content="#3AAEE0">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>매니페스트커피 발주 관리</title>
 </head>
 <body>
@@ -2325,7 +2329,7 @@ loadData().then(()=>startRealtime());
 <script>
 // 자동 업데이트 - 항상 최신 버전 유지
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('/manifest-coffee/sw.js', {updateViaCache:'none'})
+  navigator.serviceWorker.register('sw.js', {updateViaCache:'none'})
     .then(reg=>{
       // 즉시 업데이트 체크
       reg.update();
